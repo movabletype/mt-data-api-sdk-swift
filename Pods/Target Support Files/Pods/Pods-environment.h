@@ -12,12 +12,6 @@
 #define COCOAPODS_VERSION_MINOR_Alamofire 2
 #define COCOAPODS_VERSION_PATCH_Alamofire 1
 
-// Alamofire-SwiftyJSON
-#define COCOAPODS_POD_AVAILABLE_Alamofire_SwiftyJSON
-#define COCOAPODS_VERSION_MAJOR_Alamofire_SwiftyJSON 1
-#define COCOAPODS_VERSION_MINOR_Alamofire_SwiftyJSON 1
-#define COCOAPODS_VERSION_PATCH_Alamofire_SwiftyJSON 0
-
 // SVProgressHUD
 #define COCOAPODS_POD_AVAILABLE_SVProgressHUD
 #define COCOAPODS_VERSION_MAJOR_SVProgressHUD 1

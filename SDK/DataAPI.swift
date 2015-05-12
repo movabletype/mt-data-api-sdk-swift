@@ -9,7 +9,6 @@
 import UIKit
 import Alamofire
 import SwiftyJSON
-import Alamofire_SwiftyJSON
 
 class DataAPI: NSObject {
 
@@ -106,10 +105,11 @@ class DataAPI: NSObject {
     func fetchList(url: String, params: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         var request = makeRequest(.GET, url: url, parameters: params)
         request
-            .responseSwiftyJSON ({ (request, response, json, error) -> Void in
+            .responseJSON { (request, response, json, error) -> Void in
                 if let error = error {
                     failure(self.errorJSON())
                 } else {
+                    var json = JSON(json!)
                     if json["error"].dictionary != nil {
                         failure(json["error"])
                         return
@@ -118,23 +118,24 @@ class DataAPI: NSObject {
                     let total = json["totalResults"].intValue
                     success(items:items, total:total)
                 }
-        })
+        }
     }
     
     private func actionCommon(action: Alamofire.Method, url: String, params: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         var request = makeRequest(action, url: url, parameters: params)
         request
-            .responseSwiftyJSON ({ (request, response, json, error) -> Void in
+            .responseJSON { (request, response, json, error) -> Void in
                 if let error = error {
                     failure(self.errorJSON())
                 } else {
+                    var json = JSON(json!)
                     if json["error"].dictionary != nil {
                         failure(json["error"])
                         return
                     }
                     success(json)
                 }
-        })
+        }
     }
     
     func action(name: String, action: Alamofire.Method, url: String, object: [String: AnyObject]? = nil, options: [String: AnyObject]?, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
@@ -168,10 +169,11 @@ class DataAPI: NSObject {
     private func repeatAction(action: Alamofire.Method, url: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         var request = makeRequest(action, url: url, parameters: options)
         request
-            .responseSwiftyJSON ({ (request, response, json, error) -> Void in
+            .responseJSON { (request, response, json, error) -> Void in
                 if let error = error {
                     failure(self.errorJSON())
                 } else {
+                    var json = JSON(json!)
                     if json["error"].dictionary != nil {
                         failure(json["error"])
                         return
@@ -188,7 +190,7 @@ class DataAPI: NSObject {
                         }
                     }
                 }
-        })
+        }
     }
     
     //MARK: - APIs
@@ -210,10 +212,11 @@ class DataAPI: NSObject {
                       "clientId":self.clientID]
         var request = makeRequest(.POST, url: url, parameters: params)
         request
-            .responseSwiftyJSON ({ (request, response, json, error) -> Void in
+            .responseJSON { (request, response, json, error) -> Void in
                 if let error = error {
                     failure(self.errorJSON())
                 } else {
+                    var json = JSON(json!)
                     if json["error"].dictionary != nil {
                         failure(json["error"])
                         return
@@ -226,7 +229,7 @@ class DataAPI: NSObject {
                     }
                     success(json)
                 }
-        })
+        }
     }
 
     func getToken(success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
@@ -240,10 +243,11 @@ class DataAPI: NSObject {
             return
         }
         request
-            .responseSwiftyJSON ({ (request, response, json, error) -> Void in
+            .responseJSON { (request, response, json, error) -> Void in
                 if let error = error {
                     failure(self.errorJSON())
                 } else {
+                    var json = JSON(json!)
                     if json["error"].dictionary != nil {
                         failure(json["error"])
                         return
@@ -253,7 +257,7 @@ class DataAPI: NSObject {
                     }
                     success(json)
                 }
-        })
+        }
     }
     
     func revokeAuthentication(success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
@@ -267,10 +271,11 @@ class DataAPI: NSObject {
             return
         }
         request
-            .responseSwiftyJSON ({ (request, response, json, error) -> Void in
+            .responseJSON { (request, response, json, error) -> Void in
                 if let error = error {
                     failure(self.errorJSON())
                 } else {
+                    var json = JSON(json!)
                     if json["error"].dictionary != nil {
                         failure(json["error"])
                         return
@@ -278,7 +283,7 @@ class DataAPI: NSObject {
                     self.resetSession()
                     success(json)
                 }
-        })
+        }
     }
     
     func revokeToken(success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
@@ -478,17 +483,18 @@ class DataAPI: NSObject {
         
         var request = makeUploadRequest(importData, fileName: "import.dat", url: url, parameters: options)
         request
-            .responseSwiftyJSON ({ (request, response, json, error) -> Void in
+            .responseJSON { (request, response, json, error) -> Void in
                 if let error = error {
                     failure(self.errorJSON())
                 } else {
+                    var json = JSON(json!)
                     if json["error"].dictionary != nil {
                         failure(json["error"])
                         return
                     }
                     success(json)
                 }
-        })
+        }
     }
 
     func importEntries(#siteID: String, importData: NSData? = nil, options: [String: String]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
@@ -847,17 +853,18 @@ class DataAPI: NSObject {
         
         var request = makeUploadRequest(assetData, fileName: fileName, url: url, parameters: options)
         request
-            .responseSwiftyJSON ({ (request, response, json, error) -> Void in
+            .responseJSON { (request, response, json, error) -> Void in
                 if let error = error {
                     failure(self.errorJSON())
                 } else {
+                    var json = JSON(json!)
                     if json["error"].dictionary != nil {
                         failure(json["error"])
                         return
                     }
                     success(json)
                 }
-        })
+        }
     }
 
     private func assetAction(action: Alamofire.Method, siteID: String, assetID: String, asset: [String: AnyObject]? = nil, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
