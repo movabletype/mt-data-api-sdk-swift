@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="7702" systemVersion="14D136" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" initialViewController="0yF-tR-E7E">
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="7701"/>
+        <capability name="Constraints to layout margins" minToolsVersion="6.0"/>
+    </dependencies>
+    <scenes>
+        <!--Entry Detail View Controller-->
+        <scene sceneID="lRd-5G-1bJ">
+            <objects>
+                <viewController id="0yF-tR-E7E" customClass="EntryDetailViewController" customModule="MTDataAPI" customModuleProvider="target" sceneMemberID="viewController">
+                    <layoutGuides>
+                        <viewControllerLayoutGuide type="top" id="6a9-wM-Rxp"/>
+                        <viewControllerLayoutGuide type="bottom" id="0SD-Ib-pqy"/>
+                    </layoutGuides>
+                    <view key="view" contentMode="scaleToFill" id="cpb-xc-caC">
+                        <rect key="frame" x="0.0" y="0.0" width="320" height="568"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <textField opaque="NO" clipsSubviews="YES" contentMode="scaleToFill" contentHorizontalAlignment="left" contentVerticalAlignment="center" placeholder="Title" minimumFontSize="17" translatesAutoresizingMaskIntoConstraints="NO" id="pyc-d3-9SW">
+                                <rect key="frame" x="16" y="28" width="288" height="30"/>
+                                <color key="backgroundColor" red="0.95686274509803926" green="0.95686274509803926" blue="0.95686274509803926" alpha="1" colorSpace="calibratedRGB"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="30" id="nuf-AI-xqO"/>
+                                </constraints>
+                                <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                                <textInputTraits key="textInputTraits"/>
+                            </textField>
+                            <switch opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" contentHorizontalAlignment="center" contentVerticalAlignment="center" on="YES" translatesAutoresizingMaskIntoConstraints="NO" id="ptX-By-yYp">
+                                <rect key="frame" x="255" y="251" width="51" height="31"/>
+                            </switch>
+                            <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="V4v-LB-QfJ">
+                                <rect key="frame" x="16" y="66" width="288" height="177"/>
+                                <color key="backgroundColor" red="0.96492266414141414" green="0.96492266414141414" blue="0.96492266414141414" alpha="1" colorSpace="calibratedRGB"/>
+                                <string key="text">Lorem ipsum dolor sit er elit lamet, consectetaur cillium adipisicing pecu, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Nam liber te conscient to factor tum poen legum odioque civiuda.</string>
+                                <fontDescription key="fontDescription" name="HelveticaNeue" family="Helvetica Neue" pointSize="14"/>
+                                <textInputTraits key="textInputTraits" autocapitalizationType="sentences"/>
+                            </textView>
+                        </subviews>
+                        <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                        <constraints>
+                            <constraint firstItem="pyc-d3-9SW" firstAttribute="top" secondItem="6a9-wM-Rxp" secondAttribute="bottom" constant="8" symbolic="YES" id="NXG-xI-zKA"/>
+                            <constraint firstItem="pyc-d3-9SW" firstAttribute="trailing" secondItem="cpb-xc-caC" secondAttribute="trailingMargin" id="OTf-iu-iL4"/>
+                            <constraint firstItem="ptX-By-yYp" firstAttribute="top" secondItem="V4v-LB-QfJ" secondAttribute="bottom" constant="8" symbolic="YES" id="UWU-dD-oor"/>
+                            <constraint firstItem="V4v-LB-QfJ" firstAttribute="top" secondItem="pyc-d3-9SW" secondAttribute="bottom" constant="8" symbolic="YES" id="ZhH-Vg-ZEQ"/>
+                            <constraint firstItem="pyc-d3-9SW" firstAttribute="trailing" secondItem="V4v-LB-QfJ" secondAttribute="trailing" id="cCX-iH-pwg"/>
+                            <constraint firstItem="V4v-LB-QfJ" firstAttribute="trailing" secondItem="ptX-By-yYp" secondAttribute="trailing" id="iPK-qO-Uh4"/>
+                            <constraint firstItem="V4v-LB-QfJ" firstAttribute="leading" secondItem="pyc-d3-9SW" secondAttribute="leading" id="kIx-g1-THe"/>
+                            <constraint firstItem="pyc-d3-9SW" firstAttribute="leading" secondItem="cpb-xc-caC" secondAttribute="leadingMargin" id="onX-1N-8Dy"/>
+                            <constraint firstItem="0SD-Ib-pqy" firstAttribute="top" secondItem="ptX-By-yYp" secondAttribute="bottom" constant="286" id="pzw-lj-Bno"/>
+                        </constraints>
+                    </view>
+                    <simulatedScreenMetrics key="simulatedDestinationMetrics" type="retina4"/>
+                    <connections>
+                        <outlet property="bodyTextView" destination="V4v-LB-QfJ" id="N9c-Ga-U2S"/>
+                        <outlet property="statusSwitch" destination="ptX-By-yYp" id="Dh6-R2-xNg"/>
+                        <outlet property="titleField" destination="pyc-d3-9SW" id="5sv-xf-J5s"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="F5H-ch-kaq" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="382" y="381"/>
+        </scene>
+    </scenes>
+</document>
