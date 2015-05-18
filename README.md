@@ -51,3 +51,22 @@ api.authentication("username", password: "password", remember: true,
     }
 )
 ```
+
+### upload asset
+```swift
+let api = DataAPI.sharedInstance
+api.APIBaseURL = "http://host/mt/mt-data-api.cgi"
+api.authentication("username", password: "password", remember: true,
+    success: {_ in
+        let image = UIImage(named:"photo")
+        let data = UIImageJPEGRepresentation(image, 1.0)
+        api.uploadAssetForSite(siteID: siteID, assetData: data, fileName: "photo.jpeg", options: ["path":"/images", "autoRenameIfExists":"true"],
+            success: {(result: JSON!)-> Void  in
+                println(result)
+            },
+            failure: failure
+        )
+    },
+    failure: failure
+)
+```
