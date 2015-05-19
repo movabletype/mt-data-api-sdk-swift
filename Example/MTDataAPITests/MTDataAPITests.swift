@@ -3,7 +3,7 @@
 //  MTDataAPITests
 //
 //  Created by CHEEBOW on 2015/05/12.
-//  Copyright (c) 2015年 CHEEBOW. All rights reserved.
+//  Copyright (c) 2015年 Six Apart, Ltd. All rights reserved.
 //
 
 import UIKit

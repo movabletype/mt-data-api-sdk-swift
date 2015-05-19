@@ -3,7 +3,7 @@
 //  MTDataAPI
 //
 //  Created by CHEEBOW on 2015/04/20.
-//  Copyright (c) 2015年 CHEEBOW. All rights reserved.
+//  Copyright (c) 2015年 Six Apart, Ltd. All rights reserved.
 //
 
 import UIKit
