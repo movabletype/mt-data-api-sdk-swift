@@ -1124,7 +1124,7 @@ class DataAPI: NSObject {
         self.post(url, params: options, success: success, failure: failure)
     }
 
-    func refreshTemplateForSite(#siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func refreshTemplateForSite(siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         var url = APIURL() + "/sites/\(siteID)/refresh_templates"
 
         self.post(url, params: options, success: success, failure: failure)
@@ -1345,12 +1345,12 @@ class DataAPI: NSObject {
         self.fetchList(url, params: options, success: success, failure: failure)
     }
 
-    func listPermissionsForUser(entryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listPermissionsForUser(userID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
 
-        self.listPermissionsForObject("users", objectID: entryID, options: options, success: success, failure: failure)
+        self.listPermissionsForObject("users", objectID: userID, options: options, success: success, failure: failure)
     }
 
-    func listPermissionsForSite(#siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listPermissionsForSite(siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.listPermissionsForObject("sites", objectID: siteID, options: options, success: success, failure: failure)
     }
@@ -1360,7 +1360,7 @@ class DataAPI: NSObject {
         self.listPermissionsForObject("roles", objectID: roleID, options: options, success: success, failure: failure)
     }
 
-    func grantPermissionToSite(#siteID: String, userID: String, roleID: String, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func grantPermissionToSite(siteID: String, userID: String, roleID: String, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         var url = APIURL() + "/sites/\(siteID)/permissions/grant"
 
         var params: [String:String] = [:]
@@ -1380,7 +1380,7 @@ class DataAPI: NSObject {
         self.post(url, params: params, success: success, failure: failure)
     }
 
-    func revokePermissionToSite(#siteID: String, userID: String, roleID: String, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func revokePermissionToSite(siteID: String, userID: String, roleID: String, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         var url = APIURL() + "/sites/\(siteID)/permissions/revoke"
 
         var params: [String:String] = [:]
