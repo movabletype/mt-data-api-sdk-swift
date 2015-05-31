@@ -205,6 +205,8 @@ class DataAPI: NSObject {
     //MARK: - Authentication
     func authentication(username: String, password: String, remember: Bool, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         var url = APIURL() + "/authentication"
+        
+        resetAuth()
 
         var params = ["username":username,
                       "password":password,
