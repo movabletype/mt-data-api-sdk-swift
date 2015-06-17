@@ -510,6 +510,17 @@ class DataAPI: NSObject {
 
         self.post(url, params: options, success: success, failure: failure)
     }
+    
+    func previewEntry(#siteID: String, entryID: String? = nil, entry: [String: AnyObject]? = nil, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+        var url = APIURL() + "/sites/\(siteID)/entries"
+        if let id = entryID {
+            url += "/\(id)/preview"
+        } else {
+            url += "/preview"
+        }
+        
+        self.action("entry", action: .POST, url: url, object: entry, options: options, success: success, failure: failure)
+    }
 
     //MARK: - Page
     func listPages(#siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
@@ -562,6 +573,17 @@ class DataAPI: NSObject {
 
     func listPagesForSiteAndTag(#siteID: String, tagID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listPagesForObject("tags", siteID: siteID, objectID: tagID, options: options, success: success, failure: failure)
+    }
+
+    func previewPage(#siteID: String, pageID: String? = nil, entry: [String: AnyObject]? = nil, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+        var url = APIURL() + "/sites/\(siteID)/pages"
+        if let id = pageID {
+            url += "/\(id)/preview"
+        } else {
+            url += "/preview"
+        }
+        
+        self.action("page", action: .POST, url: url, object: entry, options: options, success: success, failure: failure)
     }
 
     //MARK: - Category
