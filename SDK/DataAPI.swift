@@ -242,6 +242,7 @@ class DataAPI: NSObject {
         if sessionID != "" {
             setMTAuthSession()
         } else {
+            failure(self.errorJSON())
             return
         }
         request
@@ -270,6 +271,7 @@ class DataAPI: NSObject {
         if sessionID != "" {
             setMTAuthSession()
         } else {
+            failure(self.errorJSON())
             return
         }
         request
@@ -735,6 +737,7 @@ class DataAPI: NSObject {
 
     private func tagAction(action: Alamofire.Method, siteID: String, tagID: String, tag: [String: AnyObject]? = nil, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         if action == .POST {
+            failure(self.errorJSON())
             return
         }
         var url = APIURL() + "/sites/\(siteID)/tags/\(tagID)"
@@ -896,6 +899,7 @@ class DataAPI: NSObject {
         if action != .POST {
             url += "/" + assetID
         } else {
+            failure(self.errorJSON())
             return
         }
 
@@ -952,6 +956,7 @@ class DataAPI: NSObject {
             url += "/" + commentID
         } else {
             //use createCommentForEntry or createCommentForPage
+            failure(self.errorJSON())
             return
         }
 
@@ -1033,6 +1038,7 @@ class DataAPI: NSObject {
         if action != .POST {
             url += "/" + trackbackID
         } else {
+            failure(self.errorJSON())
             return
         }
 
