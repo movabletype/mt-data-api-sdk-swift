@@ -3,7 +3,7 @@
 ## Requirements
 
 - iOS 8.0+
-- Xcode 6.1
+- Xcode 6.1+
 
 ## Usage
 
