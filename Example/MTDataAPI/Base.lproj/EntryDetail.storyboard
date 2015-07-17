@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="7702" systemVersion="14D136" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" initialViewController="0yF-tR-E7E">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="7706" systemVersion="14E46" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" initialViewController="0yF-tR-E7E">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="7701"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="7703"/>
         <capability name="Constraints to layout margins" minToolsVersion="6.0"/>
     </dependencies>
     <scenes>
@@ -36,15 +36,27 @@
                                 <fontDescription key="fontDescription" name="HelveticaNeue" family="Helvetica Neue" pointSize="14"/>
                                 <textInputTraits key="textInputTraits" autocapitalizationType="sentences"/>
                             </textView>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Status" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="a2c-m9-CW2">
+                                <rect key="frame" x="197" y="256" width="50" height="21"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="50" id="rXu-gg-hTH"/>
+                                </constraints>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <color key="textColor" cocoaTouchSystemColor="darkTextColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
                         </subviews>
                         <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
                         <constraints>
+                            <constraint firstItem="a2c-m9-CW2" firstAttribute="centerY" secondItem="ptX-By-yYp" secondAttribute="centerY" id="Aya-Bs-Sgb"/>
                             <constraint firstItem="pyc-d3-9SW" firstAttribute="top" secondItem="6a9-wM-Rxp" secondAttribute="bottom" constant="8" symbolic="YES" id="NXG-xI-zKA"/>
                             <constraint firstItem="pyc-d3-9SW" firstAttribute="trailing" secondItem="cpb-xc-caC" secondAttribute="trailingMargin" id="OTf-iu-iL4"/>
+                            <constraint firstItem="ptX-By-yYp" firstAttribute="leading" secondItem="a2c-m9-CW2" secondAttribute="trailing" constant="8" symbolic="YES" id="UOP-Uw-ExD"/>
                             <constraint firstItem="ptX-By-yYp" firstAttribute="top" secondItem="V4v-LB-QfJ" secondAttribute="bottom" constant="8" symbolic="YES" id="UWU-dD-oor"/>
                             <constraint firstItem="V4v-LB-QfJ" firstAttribute="top" secondItem="pyc-d3-9SW" secondAttribute="bottom" constant="8" symbolic="YES" id="ZhH-Vg-ZEQ"/>
                             <constraint firstItem="pyc-d3-9SW" firstAttribute="trailing" secondItem="V4v-LB-QfJ" secondAttribute="trailing" id="cCX-iH-pwg"/>
                             <constraint firstItem="V4v-LB-QfJ" firstAttribute="trailing" secondItem="ptX-By-yYp" secondAttribute="trailing" id="iPK-qO-Uh4"/>
+                            <constraint firstItem="a2c-m9-CW2" firstAttribute="top" secondItem="V4v-LB-QfJ" secondAttribute="bottom" constant="13" id="iaJ-CU-cff"/>
                             <constraint firstItem="V4v-LB-QfJ" firstAttribute="leading" secondItem="pyc-d3-9SW" secondAttribute="leading" id="kIx-g1-THe"/>
                             <constraint firstItem="pyc-d3-9SW" firstAttribute="leading" secondItem="cpb-xc-caC" secondAttribute="leadingMargin" id="onX-1N-8Dy"/>
                             <constraint firstItem="0SD-Ib-pqy" firstAttribute="top" secondItem="ptX-By-yYp" secondAttribute="bottom" constant="286" id="pzw-lj-Bno"/>
