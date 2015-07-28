@@ -1,5 +1,5 @@
 //
-//  DataAPI.swift
+//  MTDataAPI.swift
 //  MTDataAPI
 //
 //  Created by CHEEBOW on 2015/03/23.
@@ -10,7 +10,7 @@ import UIKit
 import Alamofire
 import SwiftyJSON
 
-class DataAPI: NSObject {
+class MTDataAPI: NSObject {
 
     //MARK: - Properties
     private(set) var token = ""
@@ -27,7 +27,7 @@ class DataAPI: NSObject {
     }
     var basicAuth: BasicAuth = BasicAuth()
 
-    static var sharedInstance = DataAPI()
+    static var sharedInstance = MTDataAPI()
 
     //MARK: - Methods
     private func APIURL()->String! {
@@ -205,7 +205,7 @@ class DataAPI: NSObject {
     //MARK: - Authentication
     func authentication(username: String, password: String, remember: Bool, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         var url = APIURL() + "/authentication"
-        
+
         resetAuth()
 
         var params = ["username":username,
@@ -514,7 +514,7 @@ class DataAPI: NSObject {
 
         self.post(url, params: options, success: success, failure: failure)
     }
-    
+
     func previewEntry(#siteID: String, entryID: String? = nil, entry: [String: AnyObject]? = nil, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         var url = APIURL() + "/sites/\(siteID)/entries"
         if let id = entryID {
@@ -522,7 +522,7 @@ class DataAPI: NSObject {
         } else {
             url += "/preview"
         }
-        
+
         self.action("entry", action: .POST, url: url, object: entry, options: options, success: success, failure: failure)
     }
 
@@ -586,7 +586,7 @@ class DataAPI: NSObject {
         } else {
             url += "/preview"
         }
-        
+
         self.action("page", action: .POST, url: url, object: entry, options: options, success: success, failure: failure)
     }
 

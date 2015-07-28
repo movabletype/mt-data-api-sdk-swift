@@ -21,7 +21,7 @@ class EntryTableViewController: UITableViewController {
             SVProgressHUD.show()
         }
         self.fetching = true
-        let api = DataAPI.sharedInstance
+        let api = MTDataAPI.sharedInstance
         let app = UIApplication.sharedApplication().delegate as! AppDelegate
         api.authentication(app.username, password: app.password, remember: true,
             success:{_ in
