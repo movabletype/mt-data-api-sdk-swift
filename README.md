@@ -9,7 +9,7 @@
 
 ### list blogs
 ```swift
-let api = DataAPI.sharedInstance
+let api = MTDataAPI.sharedInstance
 api.APIBaseURL = "http://host/mt/mt-data-api.cgi"
 api.authentication("username", password: "password", remember: true,
     success:{_ in
@@ -29,7 +29,7 @@ api.authentication("username", password: "password", remember: true,
 
 ### create entry
 ```swift
-let api = DataAPI.sharedInstance
+let api = MTDataAPI.sharedInstance
 api.APIBaseURL = "http://host/mt/mt-data-api.cgi"
 
 var entry = [String:String]()
@@ -54,7 +54,7 @@ api.authentication("username", password: "password", remember: true,
 
 ### upload asset
 ```swift
-let api = DataAPI.sharedInstance
+let api = MTDataAPI.sharedInstance
 api.APIBaseURL = "http://host/mt/mt-data-api.cgi"
 api.authentication("username", password: "password", remember: true,
     success: {_ in
