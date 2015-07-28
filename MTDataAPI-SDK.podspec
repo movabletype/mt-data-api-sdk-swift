@@ -9,7 +9,7 @@
 
 Pod::Spec.new do |s|
   s.name             = "MTDataAPI-SDK"
-  s.version          = "1.0.3"
+  s.version          = "1.0.4"
   s.summary          = "Movable Type Data API SDK for Swift."
   s.description      = <<-DESC
                        This is the SDK for Movable Type Data API. You can use/redistribute under the MIT license.
