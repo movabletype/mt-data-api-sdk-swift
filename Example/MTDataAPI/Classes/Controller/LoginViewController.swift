@@ -44,7 +44,7 @@ class LoginViewController: UIViewController {
 
     private func login(username: String, password: String, endpoint: String) {
         SVProgressHUD.show()
-        let api = DataAPI.sharedInstance
+        let api = MTDataAPI.sharedInstance
         api.APIBaseURL = endpoint
         api.authentication(username, password: password, remember: true,
             success:{_ in
