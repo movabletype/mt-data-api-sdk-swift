@@ -454,10 +454,10 @@ class DataAPI: NSObject {
                 if let error = error {
                     failure(self.errorJSON())
                 } else {
-                    if let data: NSData = data as? NSData {
-                        let result: String = NSString(data: data, encoding: NSUTF8StringEncoding)! as String
+                    if data != nil {
+                        let result: String = NSString(data: data as! NSData, encoding: NSUTF8StringEncoding)! as String
                         if (result.hasPrefix("{\"error\":")) {
-                            let json = JSON(data:data)
+                            let json = JSON(data:data as! NSData)
                             failure(json["error"])
                             return
                         }
@@ -1479,11 +1479,11 @@ class DataAPI: NSObject {
                 if let error = error {
                     failure(self.errorJSON())
                 } else {
-                    if let data: NSData = data as? NSData {
+                    if data != nil {
                         //FIXME:ShiftJIS以外の場合もある？
-                        let result: String = NSString(data: data, encoding: NSShiftJISStringEncoding)! as String
+                        let result: String = NSString(data: data as! NSData, encoding: NSShiftJISStringEncoding)! as String
                         if (result.hasPrefix("{\"error\":")) {
-                            let json = JSON(data:data)
+                            let json = JSON(data:data as! NSData)
                             failure(json["error"])
                             return
                         }
