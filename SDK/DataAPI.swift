@@ -455,7 +455,8 @@ class DataAPI: NSObject {
                     failure(self.errorJSON())
                 } else {
                     if data != nil {
-                        let resultData: NSData = data! as! NSData
+                        let resultObject: AnyObject = data!
+                        let resultData: NSData = resultObject as! NSData
                         let result: String = NSString(data: resultData, encoding: NSUTF8StringEncoding)! as String
                         if (result.hasPrefix("{\"error\":")) {
                             let json = JSON(data:resultData)
@@ -1482,7 +1483,8 @@ class DataAPI: NSObject {
                 } else {
                     if data != nil {
                         //FIXME:ShiftJIS以外の場合もある？
-                        let resultData: NSData = data! as! NSData
+                        let resultObject: AnyObject = data!
+                        let resultData: NSData = resultObject as! NSData
                         let result: String = NSString(data: resultData, encoding: NSShiftJISStringEncoding)! as String
                         if (result.hasPrefix("{\"error\":")) {
                             let json = JSON(data:resultData)
