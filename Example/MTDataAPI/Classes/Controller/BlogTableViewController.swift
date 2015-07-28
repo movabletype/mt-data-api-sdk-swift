@@ -25,7 +25,7 @@ class BlogTableViewController: UITableViewController {
         self.title = NSLocalizedString("Blog", comment: "Blog")
         
         SVProgressHUD.show()
-        let api = DataAPI.sharedInstance
+        let api = MTDataAPI.sharedInstance
         let app = UIApplication.sharedApplication().delegate as! AppDelegate
         api.authentication(app.username, password: app.password, remember: true,
             success:{_ in

@@ -60,7 +60,7 @@ class EntryDetailViewController: UIViewController {
         var id: String = entry["id"].stringValue
         
         SVProgressHUD.show()
-        let api = DataAPI.sharedInstance
+        let api = MTDataAPI.sharedInstance
         let app = UIApplication.sharedApplication().delegate as! AppDelegate
         
         var success: (JSON!-> Void) = {
