@@ -5,10 +5,18 @@
 - iOS 8.0+
 - Xcode 6.1+
 
+## Installation
+
+```ruby
+pod "MTDataAPI-SDK"
+```
+
 ## Usage
 
 ### list blogs
 ```swift
+import MTDataAPI_SDK
+
 let api = DataAPI.sharedInstance
 api.APIBaseURL = "http://host/mt/mt-data-api.cgi"
 api.authentication("username", password: "password", remember: true,
@@ -29,6 +37,8 @@ api.authentication("username", password: "password", remember: true,
 
 ### create entry
 ```swift
+import MTDataAPI_SDK
+
 let api = DataAPI.sharedInstance
 api.APIBaseURL = "http://host/mt/mt-data-api.cgi"
 
@@ -54,6 +64,8 @@ api.authentication("username", password: "password", remember: true,
 
 ### upload asset
 ```swift
+import MTDataAPI_SDK
+
 let api = DataAPI.sharedInstance
 api.APIBaseURL = "http://host/mt/mt-data-api.cgi"
 api.authentication("username", password: "password", remember: true,
