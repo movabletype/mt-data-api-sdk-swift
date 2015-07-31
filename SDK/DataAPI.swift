@@ -27,8 +27,8 @@ public class DataAPI: NSObject {
     }
     public var basicAuth: BasicAuth = BasicAuth()
 
-    public static var sharedInstance = DataAPI()
-
+    public static let sharedInstance = DataAPI()
+    
     //MARK: - Methods
     private func APIURL()->String! {
         return APIBaseURL + "/\(APIVersion)"
