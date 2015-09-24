@@ -29,7 +29,7 @@ class BlogTableViewController: UITableViewController {
         let app = UIApplication.sharedApplication().delegate as! AppDelegate
         api.authentication(app.username, password: app.password, remember: true,
             success:{_ in
-                api.listSites(options: nil,
+                api.listSites(nil,
                     success: {(result: [JSON]!, total: Int!)-> Void in
                         self.items = result
                         self.tableView.reloadData()
@@ -66,7 +66,7 @@ class BlogTableViewController: UITableViewController {
     }
 
     override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCellWithIdentifier("cell", forIndexPath: indexPath) as! UITableViewCell
+        let cell = tableView.dequeueReusableCellWithIdentifier("cell", forIndexPath: indexPath) 
 
         // Configure the cell...
         let item = items[indexPath.row]

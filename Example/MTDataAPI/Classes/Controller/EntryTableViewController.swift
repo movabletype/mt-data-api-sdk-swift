@@ -88,7 +88,7 @@ class EntryTableViewController: UITableViewController {
     }
     
     func createEntry(sender: UIBarButtonItem) {
-        var entry = JSON(["blog":["id":blogID]])
+        let entry = JSON(["blog":["id":blogID]])
         self.showDetailView(entry)
     }
 
@@ -107,7 +107,7 @@ class EntryTableViewController: UITableViewController {
     }
 
     override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCellWithIdentifier("cell", forIndexPath: indexPath) as! UITableViewCell
+        let cell = tableView.dequeueReusableCellWithIdentifier("cell", forIndexPath: indexPath) 
 
         // Configure the cell...
         let item = items[indexPath.row]
@@ -163,7 +163,7 @@ class EntryTableViewController: UITableViewController {
     */
     
     override func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
-        var entry = items[indexPath.row]
+        let entry = items[indexPath.row]
         self.showDetailView(entry)
     }
     

@@ -68,8 +68,8 @@ class LoginViewController: UIViewController {
         let password = passwordField.text
         let endpoint = endpointField.text
         
-        if count(username) > 0 && count(password) > 0 && count(endpoint) > 0 {
-            self.login(username, password: password, endpoint: endpoint)
+        if username!.characters.count > 0 && password!.characters.count > 0 && endpoint!.characters.count > 0 {
+            self.login(username!, password: password!, endpoint: endpoint!)
         }
     }
 }

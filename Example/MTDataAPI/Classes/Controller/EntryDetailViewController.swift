@@ -23,7 +23,7 @@ class EntryDetailViewController: UIViewController {
 
         // Do any additional setup after loading the view.
         
-        println("entry:\(entry)")
+        print("entry:\(entry)")
 
         self.titleField.text = entry["title"].stringValue
         self.title = self.titleField.text
@@ -57,18 +57,18 @@ class EntryDetailViewController: UIViewController {
         newEntry["status"] = self.statusSwitch.on ? "Publish":"Draft"
 
         let blogID = entry["blog"]["id"].stringValue
-        var id: String = entry["id"].stringValue
+        let id: String = entry["id"].stringValue
         
         SVProgressHUD.show()
         let api = DataAPI.sharedInstance
         let app = UIApplication.sharedApplication().delegate as! AppDelegate
         
-        var success: (JSON!-> Void) = {
+        let success: (JSON!-> Void) = {
             (result: JSON!)-> Void in
             self.navigationController?.popViewControllerAnimated(true)
             SVProgressHUD.dismiss()
         }
-        var failure: (JSON!-> Void) = {
+        let failure: (JSON!-> Void) = {
             (error: JSON!)-> Void in
             SVProgressHUD.showErrorWithStatus(error["message"].stringValue)
         }
