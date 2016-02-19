@@ -21,7 +21,7 @@ let api = DataAPI.sharedInstance
 api.APIBaseURL = "http://host/mt/mt-data-api.cgi"
 api.authentication("username", password: "password", remember: true,
     success:{_ in
-        api.listSites(options: nil,
+        api.listSites(
             success: {(result: [JSON]!, total: Int!)-> Void in
                 let items = result
                 println(items)
@@ -76,9 +76,11 @@ api.authentication("username", password: "password", remember: true,
             success: {(result: JSON!)-> Void  in
                 println(result)
             },
-            failure: failure
+            failure: {(error: JSON!)-> Void in
+            }
         )
     },
-    failure: failure
+    failure: {(error: JSON!)-> Void in
+    }
 )
 ```
