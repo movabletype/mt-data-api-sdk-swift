@@ -10,39 +10,45 @@ import UIKit
 import Alamofire
 import SwiftyJSON
 
-public class DataAPI: NSObject {
+class DataAPI: NSObject {
 
     //MARK: - Properties
     private(set) var token = ""
     private(set) var sessionID = ""
 
-    public var APIVersion = "v2"
-    public var APIBaseURL = "http://localhost/cgi-bin/MT-6.1/mt-data-api.cgi"
+    var endpointVersion = "v3"
+    var APIBaseURL = "http://localhost/cgi-bin/MT-6.1/mt-data-api.cgi"
+    
+    private(set) var apiVersion = ""
+    
+    var clientID = "MTDataAPIClient"
 
-    public var clientID = "MTDataAPIClient"
-
-    public struct BasicAuth {
+    struct BasicAuth {
         var username = ""
         var password = ""
     }
-    public var basicAuth: BasicAuth = BasicAuth()
+    var basicAuth: BasicAuth = BasicAuth()
 
-    public static var sharedInstance = DataAPI()
+    static var sharedInstance = DataAPI()
 
     //MARK: - Methods
     private func APIURL()->String! {
-        return APIBaseURL + "/\(APIVersion)"
+        return APIBaseURL + "/\(endpointVersion)"
     }
 
-    public func urlencoding(src: String)->String! {
+    private func APIURL_V2()->String! {
+        return APIBaseURL + "/v2"
+    }
+    
+    func urlencoding(src: String)->String! {
         return src.stringByAddingPercentEncodingWithAllowedCharacters(NSCharacterSet.URLQueryAllowedCharacterSet())
     }
 
-    public func urldecoding(src: String)->String! {
+    func urldecoding(src: String)->String! {
         return src.stringByRemovingPercentEncoding
     }
 
-    public func parseParams(originalUrl: String)->[String:String] {
+    func parseParams(originalUrl: String)->[String:String] {
         let url = originalUrl.componentsSeparatedByString("?")
         let core = url[1]
         let params = core.componentsSeparatedByString("&")
@@ -59,15 +65,14 @@ public class DataAPI: NSObject {
         return JSON(["code":"-1", "message":NSLocalizedString("The operation couldn’t be completed.", comment: "The operation couldn’t be completed.")])
     }
 
-    public func resetAuth() {
+    func resetAuth() {
         token = ""
         sessionID = ""
     }
 
     private func makeRequest(method: Alamofire.Method, url: URLStringConvertible, parameters: [String: AnyObject]? = nil, encoding: ParameterEncoding = .URL, useSession: Bool = (false)) -> Request {
-
         var headers = Dictionary<String, String>()
-
+        
         if token != "" {
             headers["X-MT-Authorization"] = "MTAuth accessToken=" + token
         }
@@ -78,7 +83,7 @@ public class DataAPI: NSObject {
         }
 
         var request = Alamofire.request(method, url, parameters: parameters, encoding: encoding, headers: headers)
-
+        
         if !self.basicAuth.username.isEmpty && !self.basicAuth.password.isEmpty {
             request = request.authenticate(user: self.basicAuth.username, password: self.basicAuth.password)
         }
@@ -86,11 +91,11 @@ public class DataAPI: NSObject {
         return request
     }
 
-    public func fetchList(url: String, params: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func fetchList(url: String, params: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let request = makeRequest(.GET, url: url, parameters: params)
         request
-            .responseJSON { (request, response, json) -> Void in
-                switch json {
+            .responseJSON { response in
+                switch response.result {
                     case .Success(let data):
                         let json = JSON(data)
                         if json["error"].dictionary != nil {
@@ -100,8 +105,8 @@ public class DataAPI: NSObject {
                         let items = json["items"].array
                         let total = json["totalResults"].intValue
                         success(items:items, total:total)
-
-                    case .Failure(_, _):
+                    
+                    case .Failure(_):
                         failure(self.errorJSON())
                 }
         }
@@ -110,8 +115,8 @@ public class DataAPI: NSObject {
     private func actionCommon(action: Alamofire.Method, url: String, params: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let request = makeRequest(action, url: url, parameters: params)
         request
-            .responseJSON { (request, response, json) -> Void in
-                switch json {
+            .responseJSON { response in
+                switch response.result {
                 case .Success(let data):
                     let json = JSON(data)
                     if json["error"].dictionary != nil {
@@ -119,15 +124,15 @@ public class DataAPI: NSObject {
                         return
                     }
                     success(json)
-
-                case .Failure(_, _):
+                    
+                case .Failure(_):
                     failure(self.errorJSON())
                 }
 
         }
     }
 
-    public func action(name: String, action: Alamofire.Method, url: String, object: [String: AnyObject]? = nil, options: [String: AnyObject]?, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func action(name: String, action: Alamofire.Method, url: String, object: [String: AnyObject]? = nil, options: [String: AnyObject]?, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         var params: [String: AnyObject] = [:]
         if let options = options {
             params = options
@@ -158,8 +163,8 @@ public class DataAPI: NSObject {
     private func repeatAction(action: Alamofire.Method, url: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let request = makeRequest(action, url: url, parameters: options)
         request
-            .responseJSON { (request, response, json) -> Void in
-                switch json {
+            .responseJSON { response in
+                switch response.result {
                 case .Success(let data):
                     let json = JSON(data)
                     if json["error"].dictionary != nil {
@@ -169,7 +174,7 @@ public class DataAPI: NSObject {
                     if json["status"].string == "Complete" || json["restIds"].string == "" {
                         success(json)
                     } else {
-                        let headers: NSDictionary = response!.allHeaderFields
+                        let headers: NSDictionary = response.response!.allHeaderFields
                         if let nextURL = headers["X-MT-Next-Phase-URL"] as? String {
                             let url = self.APIURL() + "/" + nextURL
                             self.repeatAction(action, url: url, options: options, success: success, failure: failure)
@@ -177,26 +182,76 @@ public class DataAPI: NSObject {
                             failure(self.errorJSON())
                         }
                     }
-
-                case .Failure(_, _):
+                    
+                case .Failure(_):
                     failure(self.errorJSON())
                 }
         }
     }
+    
+    
+    func upload(data: NSData, fileName: String, url: String, parameters: [String:String]? = nil, progress: ((Int64!, Int64!, Int64!) -> Void)? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+        var headers = Dictionary<String, String>()
+        
+        if token != "" {
+            headers["X-MT-Authorization"] = "MTAuth accessToken=" + token
+        }
+        
+        Alamofire.upload(
+            .POST,
+            url,
+            headers: headers,
+            multipartFormData: { multipartFormData in
+                multipartFormData.appendBodyPart(data: data, name: "file", fileName: fileName, mimeType: "application/octet-stream")
+                if let params = parameters {
+                    for (key, value) in params {
+                        multipartFormData.appendBodyPart(data: value.dataUsingEncoding(NSUTF8StringEncoding)!, name: key)
+                    }
+                }
+            },
+            encodingCompletion: { encodingResult in
+                switch encodingResult {
+                case .Success(let upload, _, _):
+                    if !self.basicAuth.username.isEmpty && !self.basicAuth.password.isEmpty {
+                        upload.authenticate(user: self.basicAuth.username, password: self.basicAuth.password)
+                    }
+                    upload.progress{ (bytesWritten, totalBytesWritten, totalBytesExpectedToWrite) in
+                        dispatch_async(dispatch_get_main_queue()) {
+                            progress?(bytesWritten, totalBytesWritten, totalBytesExpectedToWrite)
+                        }
+                    }.responseJSON { response in
+                        switch response.result {
+                        case .Success(let data):
+                            let json = JSON(data)
+                            if json["error"].dictionary != nil {
+                                failure(json["error"])
+                                return
+                            }
+                            success(json)
+                            
+                        case .Failure(_):
+                            failure(self.errorJSON())
+                        }
+                    }
+                case .Failure(_):
+                    failure(self.errorJSON())
+                }
+            }
+        )
+    }
 
     //MARK: - APIs
 
+    //MARK: - # V2
     //MARK: - System
-    public func endpoints(success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func endpoints(success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/endpoints"
 
         self.fetchList(url, params: nil, success: success, failure: failure)
     }
 
     //MARK: - Authentication
-    public func authentication(username: String, password: String, remember: Bool, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
-        let url = APIURL() + "/authentication"
-
+    func authenticationCommon(url: String, username: String, password: String, remember: Bool, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         resetAuth()
 
         let params = ["username":username,
@@ -205,8 +260,8 @@ public class DataAPI: NSObject {
                       "clientId":self.clientID]
         let request = makeRequest(.POST, url: url, parameters: params)
         request
-            .responseJSON { (request, response, json) -> Void in
-                switch json {
+            .responseJSON { response in
+                switch response.result {
                 case .Success(let data):
                     let json = JSON(data)
                     if json["error"].dictionary != nil {
@@ -220,14 +275,24 @@ public class DataAPI: NSObject {
                         self.sessionID = session
                     }
                     success(json)
-
-                case .Failure(_, _):
+                    
+                case .Failure(_):
                     failure(self.errorJSON())
                 }
         }
     }
 
-    public func getToken(success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func authentication(username: String, password: String, remember: Bool, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+        let url = APIURL() + "/authentication"
+        self.authenticationCommon(url, username: username, password: password, remember: remember, success: success, failure: failure)
+    }
+
+    func authenticationV2(username: String, password: String, remember: Bool, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+        let url = APIURL_V2() + "/authentication"
+        self.authenticationCommon(url, username: username, password: password, remember: remember, success: success, failure: failure)
+    }
+    
+    func getToken(success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/token"
 
         let request = makeRequest(.POST, url: url, useSession: true)
@@ -237,8 +302,8 @@ public class DataAPI: NSObject {
             return
         }
         request
-            .responseJSON { (request, response, json) -> Void in
-                switch json {
+            .responseJSON { response in
+                switch response.result {
                 case .Success(let data):
                     let json = JSON(data)
                     if json["error"].dictionary != nil {
@@ -249,14 +314,14 @@ public class DataAPI: NSObject {
                         self.token = accessToken
                     }
                     success(json)
-
-                case .Failure(_, _):
+                    
+                case .Failure(_):
                     failure(self.errorJSON())
                 }
         }
     }
 
-    public func revokeAuthentication(success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func revokeAuthentication(success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/authentication"
 
         let request = makeRequest(.DELETE, url: url)
@@ -266,8 +331,8 @@ public class DataAPI: NSObject {
             return
         }
         request
-            .responseJSON { (request, response, json) -> Void in
-                switch json {
+            .responseJSON { response in
+                switch response.result {
                 case .Success(let data):
                     let json = JSON(data)
                     if json["error"].dictionary != nil {
@@ -276,14 +341,14 @@ public class DataAPI: NSObject {
                     }
                     self.sessionID = ""
                     success(json)
-
-                case .Failure(_, _):
+                    
+                case .Failure(_):
                     failure(self.errorJSON())
                 }
         }
     }
 
-    public func revokeToken(success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func revokeToken(success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/token"
 
         self.delete(url, success: {
@@ -295,7 +360,7 @@ public class DataAPI: NSObject {
     }
 
     //MARK: - Search
-    public func search(query: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func search(query: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/search"
 
         var params: [String: AnyObject] = [:]
@@ -308,13 +373,13 @@ public class DataAPI: NSObject {
     }
 
     //MARK: - Site
-    public func listSites(options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listSites(options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites"
 
         self.fetchList(url, params: options, success: success, failure: failure)
     }
 
-    public func listSitesByParent(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listSitesByParent(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/children"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -331,30 +396,30 @@ public class DataAPI: NSObject {
         self.action("website", action: action, url: url, object: site, options: options, success: success, failure: failure)
     }
 
-    public func createSite(site: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createSite(site: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.siteAction(.POST, siteID: nil, site: site, options: options, success: success, failure: failure)
     }
 
-    public func getSite(siteID siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getSite(siteID siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.siteAction(.GET, siteID: siteID, site: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateSite(siteID siteID: String, site: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateSite(siteID siteID: String, site: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.siteAction(.PUT, siteID: siteID, site: site, options: options, success: success, failure: failure)
     }
 
-    public func deleteSite(siteID siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteSite(siteID siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.siteAction(.DELETE, siteID: siteID, site: nil, options: options, success: success, failure: failure)
     }
 
-    public func backupSite(siteID siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func backupSite(siteID siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/backup"
 
         self.get(url, params: options, success: success, failure: failure)
     }
 
     //MARK: - Blog
-    public func listBlogsForUser(userID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listBlogsForUser(userID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/users/\(userID)/sites"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -369,24 +434,24 @@ public class DataAPI: NSObject {
         self.action("blog", action: action, url: url, object: blog, options: options, success: success, failure: failure)
     }
 
-    public func createBlog(blog: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createBlog(blog: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.blogAction(.POST, blogID: nil, blog: blog, options: options, success: success, failure: failure)
     }
 
-    public func getBlog(blogID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getBlog(blogID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.blogAction(.GET, blogID: blogID, blog: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateBlog(blogID: String, blog: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateBlog(blogID: String, blog: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.blogAction(.PUT, blogID: blogID, blog: blog, options: options, success: success, failure: failure)
     }
 
-    public func deleteBlog(blogID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteBlog(blogID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.blogAction(.DELETE, blogID: blogID, blog: nil, options: options, success: success, failure: failure)
     }
 
     //MARK: - Entry
-    public func listEntries(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listEntries(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/entries"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -403,19 +468,19 @@ public class DataAPI: NSObject {
         self.action("entry", action: action, url: url, object: entry, options: options, success: success, failure: failure)
     }
 
-    public func createEntry(siteID siteID: String, entry: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createEntry(siteID siteID: String, entry: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.entryAction(.POST, siteID: siteID, entryID: nil, entry: entry, options: options, success: success, failure: failure)
     }
 
-    public func getEntry(siteID siteID: String, entryID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getEntry(siteID siteID: String, entryID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.entryAction(.GET, siteID: siteID, entryID: entryID, entry: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateEntry(siteID siteID: String, entryID: String, entry: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateEntry(siteID siteID: String, entryID: String, entry: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.entryAction(.PUT, siteID: siteID, entryID: entryID, entry: entry, options: options, success: success, failure: failure)
     }
 
-    public func deleteEntry(siteID siteID: String, entryID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteEntry(siteID siteID: String, entryID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.entryAction(.DELETE, siteID: siteID, entryID: entryID, entry: nil, options: options, success: success, failure: failure)
     }
 
@@ -426,19 +491,19 @@ public class DataAPI: NSObject {
         self.fetchList(url, params: options, success: success, failure: failure)
     }
 
-    public func listEntriesForCategory(siteID siteID: String, categoryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listEntriesForCategory(siteID siteID: String, categoryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listEntriesForObject("categories", siteID: siteID, objectID: categoryID, options: options, success: success, failure: failure)
     }
 
-    public func listEntriesForAsset(siteID siteID: String, assetID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listEntriesForAsset(siteID siteID: String, assetID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listEntriesForObject("assets", siteID: siteID, objectID: assetID, options: options, success: success, failure: failure)
     }
 
-    public func listEntriesForSiteAndTag(siteID siteID: String, tagID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listEntriesForSiteAndTag(siteID siteID: String, tagID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listEntriesForObject("tags", siteID: siteID, objectID: tagID, options: options, success: success, failure: failure)
     }
 
-    public func exportEntries(siteID siteID: String, options: [String: AnyObject]? = nil, success: (String! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func exportEntries(siteID siteID: String, options: [String: AnyObject]? = nil, success: (String! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/entries/export"
 
         let request = makeRequest(.GET, url: url, parameters: options)
@@ -462,7 +527,7 @@ public class DataAPI: NSObject {
         }
     }
 
-    public func publishEntries(entryIDs: [String], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func publishEntries(entryIDs: [String], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/publish/entries"
 
         var params: [String: AnyObject] = [:]
@@ -475,31 +540,16 @@ public class DataAPI: NSObject {
     }
 
 
-    private func importEntriesWithFile(siteID siteID: String, importData: NSData, options: [String: String]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    private func importEntriesWithFile(siteID siteID: String, importData: NSData, options: [String: String]? = nil, progress: ((Int64!, Int64!, Int64!) -> Void)? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/entries/import"
 
-        let request = makeUploadRequest(importData, fileName: "import.dat", url: url, parameters: options)
-        request
-            .responseJSON { (request, response, json) -> Void in
-                switch json {
-                case .Success(let data):
-                    let json = JSON(data)
-                    if json["error"].dictionary != nil {
-                        failure(json["error"])
-                        return
-                    }
-                    success(json)
-
-                case .Failure(_, _):
-                    failure(self.errorJSON())
-                }
-        }
+        self.upload(importData, fileName: "import.dat", url: url, parameters: options, progress: progress, success: success, failure: failure)
     }
 
-    public func importEntries(siteID siteID: String, importData: NSData? = nil, options: [String: String]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func importEntries(siteID siteID: String, importData: NSData? = nil, options: [String: String]? = nil, progress: ((Int64!, Int64!, Int64!) -> Void)? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         if importData != nil {
-            self.importEntriesWithFile(siteID: siteID, importData: importData!, options: options, success: success, failure: failure)
+            self.importEntriesWithFile(siteID: siteID, importData: importData!, options: options, progress: progress, success: success, failure: failure)
             return
         }
 
@@ -507,20 +557,20 @@ public class DataAPI: NSObject {
 
         self.post(url, params: options, success: success, failure: failure)
     }
-
-    public func previewEntry(siteID siteID: String, entryID: String? = nil, entry: [String: AnyObject]? = nil, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    
+    func previewEntry(siteID siteID: String, entryID: String? = nil, entry: [String: AnyObject]? = nil, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         var url = APIURL() + "/sites/\(siteID)/entries"
         if let id = entryID {
             url += "/\(id)/preview"
         } else {
             url += "/preview"
         }
-
+        
         self.action("entry", action: .POST, url: url, object: entry, options: options, success: success, failure: failure)
     }
 
     //MARK: - Page
-    public func listPages(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listPages(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/pages"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -537,19 +587,19 @@ public class DataAPI: NSObject {
         self.action("page", action: action, url: url, object: page, options: options, success: success, failure: failure)
     }
 
-    public func createPage(siteID siteID: String, page: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createPage(siteID siteID: String, page: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.pageAction(.POST, siteID: siteID, pageID: nil, page: page, options: options, success: success, failure: failure)
     }
 
-    public func getPage(siteID siteID: String, pageID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getPage(siteID siteID: String, pageID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.pageAction(.GET, siteID: siteID, pageID: pageID, page: nil, options: options, success: success, failure: failure)
     }
 
-    public func updatePage(siteID siteID: String, pageID: String, page: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updatePage(siteID siteID: String, pageID: String, page: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.pageAction(.PUT, siteID: siteID, pageID: pageID, page: page, options: options, success: success, failure: failure)
     }
 
-    public func deletePage(siteID siteID: String, pageID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deletePage(siteID siteID: String, pageID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.pageAction(.DELETE, siteID: siteID, pageID: pageID, page: nil, options: options, success: success, failure: failure)
     }
 
@@ -560,31 +610,31 @@ public class DataAPI: NSObject {
         self.fetchList(url, params: options, success: success, failure: failure)
     }
 
-    public func listPagesForFolder(siteID siteID: String, folderID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listPagesForFolder(siteID siteID: String, folderID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listPagesForObject("folders", siteID: siteID, objectID: folderID, options: options, success: success, failure: failure)
     }
 
-    public func listPagesForAsset(siteID siteID: String, assetID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listPagesForAsset(siteID siteID: String, assetID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listPagesForObject("assets", siteID: siteID, objectID: assetID, options: options, success: success, failure: failure)
     }
 
-    public func listPagesForSiteAndTag(siteID siteID: String, tagID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listPagesForSiteAndTag(siteID siteID: String, tagID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listPagesForObject("tags", siteID: siteID, objectID: tagID, options: options, success: success, failure: failure)
     }
 
-    public func previewPage(siteID siteID: String, pageID: String? = nil, entry: [String: AnyObject]? = nil, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func previewPage(siteID siteID: String, pageID: String? = nil, entry: [String: AnyObject]? = nil, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         var url = APIURL() + "/sites/\(siteID)/pages"
         if let id = pageID {
             url += "/\(id)/preview"
         } else {
             url += "/preview"
         }
-
+        
         self.action("page", action: .POST, url: url, object: entry, options: options, success: success, failure: failure)
     }
 
     //MARK: - Category
-    public func listCategories(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listCategories(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/categories"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -601,23 +651,23 @@ public class DataAPI: NSObject {
         self.action("category", action: action, url: url, object: category, options: options, success: success, failure: failure)
     }
 
-    public func createCategory(siteID siteID: String, category: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createCategory(siteID siteID: String, category: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.categoryAction(.POST, siteID: siteID, categoryID: nil, category: category, options: options, success: success, failure: failure)
     }
 
-    public func getCategory(siteID siteID: String, categoryID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getCategory(siteID siteID: String, categoryID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.categoryAction(.GET, siteID: siteID, categoryID: categoryID, category: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateCategory(siteID siteID: String, categoryID: String, category: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateCategory(siteID siteID: String, categoryID: String, category: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.categoryAction(.PUT, siteID: siteID, categoryID: categoryID, category: category, options: options, success: success, failure: failure)
     }
 
-    public func deleteCategory(siteID siteID: String, categoryID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteCategory(siteID siteID: String, categoryID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.categoryAction(.DELETE, siteID: siteID, categoryID: categoryID, category: nil, options: options, success: success, failure: failure)
     }
 
-    public func listCategoriesForEntry(siteID siteID: String, entryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listCategoriesForEntry(siteID siteID: String, entryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/entries/\(entryID)/categories"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -630,19 +680,19 @@ public class DataAPI: NSObject {
         self.fetchList(url, params: options, success: success, failure: failure)
     }
 
-    public func listParentCategories(siteID siteID: String, categoryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listParentCategories(siteID siteID: String, categoryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listCategoriesForRelation("parents", siteID: siteID, categoryID: categoryID, options: options, success: success, failure: failure)
     }
 
-    public func listSiblingCategories(siteID siteID: String, categoryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listSiblingCategories(siteID siteID: String, categoryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listCategoriesForRelation("siblings", siteID: siteID, categoryID: categoryID, options: options, success: success, failure: failure)
     }
 
-    public func listChildCategories(siteID siteID: String, categoryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listChildCategories(siteID siteID: String, categoryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listCategoriesForRelation("children", siteID: siteID, categoryID: categoryID, options: options, success: success, failure: failure)
     }
 
-    public func permutateCategories(siteID siteID: String, categories: [[String: AnyObject]]? = nil, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func permutateCategories(siteID siteID: String, categories: [[String: AnyObject]]? = nil, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/categories/permutate"
 
         var params: [String: AnyObject] = [:]
@@ -658,7 +708,7 @@ public class DataAPI: NSObject {
     }
 
     //MARK: - Folder
-    public func listFolders(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listFolders(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/folders"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -673,19 +723,19 @@ public class DataAPI: NSObject {
         self.action("folder", action: action, url: url, object: folder, options: options, success: success, failure: failure)
     }
 
-    public func createFolder(siteID siteID: String, folder: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createFolder(siteID siteID: String, folder: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.folderAction(.POST, siteID: siteID, folderID: nil, folder: folder, options: options, success: success, failure: failure)
     }
 
-    public func getFolder(siteID siteID: String, folderID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getFolder(siteID siteID: String, folderID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.folderAction(.GET, siteID: siteID, folderID: folderID, folder: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateFolder(siteID siteID: String, folderID: String, folder: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateFolder(siteID siteID: String, folderID: String, folder: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.folderAction(.PUT, siteID: siteID, folderID: folderID, folder: folder, options: options, success: success, failure: failure)
     }
 
-    public func deleteFolder(siteID siteID: String, folderID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteFolder(siteID siteID: String, folderID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.folderAction(.DELETE, siteID: siteID, folderID: folderID, folder: nil, options: options, success: success, failure: failure)
     }
 
@@ -696,19 +746,19 @@ public class DataAPI: NSObject {
         self.fetchList(url, params: options, success: success, failure: failure)
     }
 
-    public func listParentFolders(siteID siteID: String, folderID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listParentFolders(siteID siteID: String, folderID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listFoldersForRelation("parents", siteID: siteID, folderID: folderID, options: options, success: success, failure: failure)
     }
 
-    public func listSiblingFolders(siteID siteID: String, folderID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listSiblingFolders(siteID siteID: String, folderID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listFoldersForRelation("siblings", siteID: siteID, folderID: folderID, options: options, success: success, failure: failure)
     }
 
-    public func listChildFolders(siteID siteID: String, folderID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listChildFolders(siteID siteID: String, folderID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listFoldersForRelation("children", siteID: siteID, folderID: folderID, options: options, success: success, failure: failure)
     }
 
-    public func permutateFolders(siteID siteID: String, folders: [[String: AnyObject]]? = nil, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func permutateFolders(siteID siteID: String, folders: [[String: AnyObject]]? = nil, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/folders/permutate"
 
         var params: [String: AnyObject] = [:]
@@ -724,7 +774,7 @@ public class DataAPI: NSObject {
     }
 
     //MARK: - Tag
-    public func listTags(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listTags(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/tags"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -740,20 +790,20 @@ public class DataAPI: NSObject {
         self.action("tag", action: action, url: url, object: tag, options: options, success: success, failure: failure)
     }
 
-    public func getTag(siteID siteID: String, tagID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getTag(siteID siteID: String, tagID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.tagAction(.GET, siteID: siteID, tagID: tagID, tag: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateTag(siteID siteID: String, tagID: String, tag: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateTag(siteID siteID: String, tagID: String, tag: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.tagAction(.PUT, siteID: siteID, tagID: tagID, tag: tag, options: options, success: success, failure: failure)
     }
 
-    public func deleteTag(siteID siteID: String, tagID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteTag(siteID siteID: String, tagID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.tagAction(.DELETE, siteID: siteID, tagID: tagID, tag: nil, options: options, success: success, failure: failure)
     }
 
     //MARK: - User
-    public func listUsers(options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listUsers(options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/users"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -770,35 +820,35 @@ public class DataAPI: NSObject {
         self.action("user", action: action, url: url, object: user, options: options, success: success, failure: failure)
     }
 
-    public func createUser(user: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createUser(user: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.userAction(.POST, userID: nil, user: user, options: options, success: success, failure: failure)
     }
 
-    public func getUser(userID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getUser(userID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.userAction(.GET, userID: userID, user: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateUser(userID: String, user: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateUser(userID: String, user: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.userAction(.PUT, userID: userID, user: user, options: options, success: success, failure: failure)
     }
 
-    public func deleteUser(userID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteUser(userID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.userAction(.DELETE, userID: userID, user: nil, options: options, success: success, failure: failure)
     }
 
-    public func unlockUser(userID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func unlockUser(userID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/users/\(userID)/unlock"
 
         self.post(url, params: options, success: success, failure: failure)
     }
 
-    public func recoverPasswordForUser(userID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func recoverPasswordForUser(userID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/users/\(userID)/recover_password"
 
         self.post(url, params: options, success: success, failure: failure)
     }
 
-    public func recoverPassword(name: String, email: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func recoverPassword(name: String, email: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/recover_password"
 
         var params: [String: AnyObject] = [:]
@@ -813,61 +863,17 @@ public class DataAPI: NSObject {
     }
 
     //MARK: - Asset
-    public func listAssets(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listAssets(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/assets"
 
         self.fetchList(url, params: options, success: success, failure: failure)
     }
-
-    private func makeUploadRequest(data: NSData, fileName: String, url: String, parameters: [String:String]? = nil)->Request {
-        let mutableURLRequest = NSMutableURLRequest(URL: NSURL(string: url)!)
-        mutableURLRequest.HTTPMethod = "POST"
-
-        let mutableData = NSMutableData()
-        let boundary = "Boundary+\(arc4random())\(arc4random())"
-        var bodyStr = "\r\n--" + boundary + "\r\n"
-        mutableData.appendData(bodyStr.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: true)!)
-        if let params = parameters {
-            for (key, value) in params {
-                bodyStr = "Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n\(value)"
-                mutableData.appendData(bodyStr.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: true)!)
-                let bodyStr = "\r\n--" + boundary + "\r\n"
-                mutableData.appendData(bodyStr.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: true)!)
-            }
-        }
-        bodyStr = "Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n"
-        mutableData.appendData(bodyStr.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: true)!)
-        bodyStr = "Content-Type: application/octet-stream\r\n\r\n"
-        mutableData.appendData(bodyStr.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: true)!)
-        mutableData.appendData(data)
-        bodyStr = "\r\n\r\n"
-        mutableData.appendData(bodyStr.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: true)!)
-
-        let tailStr = "--\(boundary)--\r\n\r\n"
-        mutableData.appendData(tailStr.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: true)!)
-
-        mutableURLRequest.HTTPBody = mutableData
-        bodyStr = "multipart/form-data; boundary=\(boundary)"
-        mutableURLRequest.setValue(bodyStr, forHTTPHeaderField: "Content-Type")
-
-        if token != "" {
-            mutableURLRequest.setValue("MTAuth accessToken=" + token, forHTTPHeaderField: "X-MT-Authorization")
-        }
-
-        var request = Alamofire.request(mutableURLRequest)
-
-        if !self.basicAuth.username.isEmpty && !self.basicAuth.password.isEmpty {
-            request = request.authenticate(user: self.basicAuth.username, password: self.basicAuth.password)
-        }
-
-        return request
+    
+    func uploadAsset(assetData: NSData, fileName: String, options: [String: String]? = nil, progress: ((Int64!, Int64!, Int64!) -> Void)? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+        self.uploadAssetForSite(nil, assetData: assetData, fileName: fileName, options: options, progress: progress, success: success, failure: failure)
     }
 
-    public func uploadAsset(assetData: NSData, fileName: String, options: [String: String]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
-        self.uploadAssetForSite(nil, assetData: assetData, fileName: fileName, options: options, success: success, failure: failure)
-    }
-
-    public func uploadAssetForSite(siteID: String? = nil, assetData: NSData, fileName: String, options: [String: String]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func uploadAssetForSite(siteID: String? = nil, assetData: NSData, fileName: String, options: [String: String]? = nil, progress: ((Int64!, Int64!, Int64!) -> Void)? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         var url = APIURL() + "/"
         if let siteID = siteID {
             url += "sites/\(siteID)/assets/upload"
@@ -875,22 +881,7 @@ public class DataAPI: NSObject {
             url += "assets/upload"
         }
 
-        let request = makeUploadRequest(assetData, fileName: fileName, url: url, parameters: options)
-        request
-            .responseJSON { (request, response, json) -> Void in
-                switch json {
-                case .Success(let data):
-                    let json = JSON(data)
-                    if json["error"].dictionary != nil {
-                        failure(json["error"])
-                        return
-                    }
-                    success(json)
-
-                case .Failure(_, _):
-                    failure(self.errorJSON())
-                }
-        }
+        self.upload(assetData, fileName: fileName, url: url, parameters: options, progress: progress, success: success, failure: failure)
     }
 
     private func assetAction(action: Alamofire.Method, siteID: String, assetID: String, asset: [String: AnyObject]? = nil, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
@@ -905,15 +896,15 @@ public class DataAPI: NSObject {
         self.action("asset", action: action, url: url, object: asset, options: options, success: success, failure: failure)
     }
 
-    public func getAsset(siteID siteID: String, assetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getAsset(siteID siteID: String, assetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.assetAction(.GET, siteID: siteID, assetID: assetID, asset: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateAsset(siteID siteID: String, assetID: String, asset: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateAsset(siteID siteID: String, assetID: String, asset: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.assetAction(.PUT, siteID: siteID, assetID: assetID, asset: asset, options: options, success: success, failure: failure)
     }
 
-    public func deleteAsset(siteID siteID: String, assetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteAsset(siteID siteID: String, assetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.assetAction(.DELETE, siteID: siteID, assetID: assetID, asset: nil, options: options, success: success, failure: failure)
     }
 
@@ -924,26 +915,26 @@ public class DataAPI: NSObject {
         self.fetchList(url, params: options, success: success, failure: failure)
     }
 
-    public func listAssetsForEntry(siteID siteID: String, entryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listAssetsForEntry(siteID siteID: String, entryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listAssetsForObject("entries", siteID: siteID, objectID: entryID, options: options, success: success, failure: failure)
     }
 
-    public func listAssetsForPage(siteID siteID: String, pageID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listAssetsForPage(siteID siteID: String, pageID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listAssetsForObject("pages", siteID: siteID, objectID: pageID, options: options, success: success, failure: failure)
     }
 
-    public func listAssetsForSiteAndTag(siteID siteID: String, tagID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listAssetsForSiteAndTag(siteID siteID: String, tagID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.listAssetsForObject("tags", siteID: siteID, objectID: tagID, options: options, success: success, failure: failure)
     }
 
-    public func getThumbnail(siteID siteID: String, assetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getThumbnail(siteID siteID: String, assetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/assets/\(assetID)/thumbnail"
 
         self.get(url, params: options, success: success, failure: failure)
     }
 
     //MARK: - Comment
-    public func listComments(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listComments(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/comments"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -962,15 +953,15 @@ public class DataAPI: NSObject {
         self.action("comment", action: action, url: url, object: comment, options: options, success: success, failure: failure)
     }
 
-    public func getComment(siteID siteID: String, commentID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getComment(siteID siteID: String, commentID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.commentAction(.GET, siteID: siteID, commentID: commentID, comment: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateComment(siteID siteID: String, commentID: String, comment: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateComment(siteID siteID: String, commentID: String, comment: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.commentAction(.PUT, siteID: siteID, commentID: commentID, comment: comment, options: options, success: success, failure: failure)
     }
 
-    public func deleteComment(siteID siteID: String, commentID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteComment(siteID siteID: String, commentID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.commentAction(.DELETE, siteID: siteID, commentID: commentID, comment: nil, options: options, success: success, failure: failure)
     }
 
@@ -981,12 +972,12 @@ public class DataAPI: NSObject {
         self.fetchList(url, params: options, success: success, failure: failure)
     }
 
-    public func listCommentsForEntry(siteID siteID: String, entryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listCommentsForEntry(siteID siteID: String, entryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.listCommentsForObject("entries", siteID: siteID, objectID: entryID, options: options, success: success, failure: failure)
     }
 
-    public func listCommentsForPage(siteID siteID: String, pageID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listCommentsForPage(siteID siteID: String, pageID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.listCommentsForObject("pages", siteID: siteID, objectID: pageID, options: options, success: success, failure: failure)
     }
@@ -998,12 +989,12 @@ public class DataAPI: NSObject {
         self.action("comment", action: .POST, url: url, object: comment, options: options, success: success, failure: failure)
     }
 
-    public func createCommentForEntry(siteID siteID: String, entryID: String, comment: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createCommentForEntry(siteID siteID: String, entryID: String, comment: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.createCommentForObject("entries", siteID: siteID, objectID: entryID, comment: comment, options: options, success: success, failure: failure)
     }
 
-    public func createCommentForPage(siteID siteID: String, pageID: String, comment: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createCommentForPage(siteID siteID: String, pageID: String, comment: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.createCommentForObject("pages", siteID: siteID, objectID: pageID, comment: comment, options: options, success: success, failure: failure)
     }
@@ -1015,18 +1006,18 @@ public class DataAPI: NSObject {
         self.action("comment", action: .POST, url: url, object: reply, options: options, success: success, failure: failure)
     }
 
-    public func createReplyCommentForEntry(siteID siteID: String, entryID: String, commentID: String, reply: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createReplyCommentForEntry(siteID siteID: String, entryID: String, commentID: String, reply: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.createReplyCommentForObject("entries", siteID: siteID, objectID: entryID, commentID: commentID, reply: reply, options: options, success: success, failure: failure)
     }
 
-    public func createReplyCommentForPage(siteID siteID: String, pageID: String, commentID: String, reply: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createReplyCommentForPage(siteID siteID: String, pageID: String, commentID: String, reply: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.createReplyCommentForObject("pages", siteID: siteID, objectID: pageID, commentID: commentID, reply: reply, options: options, success: success, failure: failure)
     }
 
     //MARK: - Trackback
-    public func listTrackbacks(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listTrackbacks(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/trackbacks"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -1044,15 +1035,15 @@ public class DataAPI: NSObject {
         self.action("comment", action: action, url: url, object: trackback, options: options, success: success, failure: failure)
     }
 
-    public func getTrackback(siteID siteID: String, trackbackID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getTrackback(siteID siteID: String, trackbackID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.trackbackAction(.GET, siteID: siteID, trackbackID: trackbackID, trackback: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateTrackback(siteID siteID: String, trackbackID: String, trackback: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateTrackback(siteID siteID: String, trackbackID: String, trackback: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.trackbackAction(.PUT, siteID: siteID, trackbackID: trackbackID, trackback: trackback, options: options, success: success, failure: failure)
     }
 
-    public func deleteTrackback(siteID siteID: String, trackbackID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteTrackback(siteID siteID: String, trackbackID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.trackbackAction(.DELETE, siteID: siteID, trackbackID: trackbackID, trackback: nil, options: options, success: success, failure: failure)
     }
 
@@ -1063,18 +1054,18 @@ public class DataAPI: NSObject {
         self.fetchList(url, params: options, success: success, failure: failure)
     }
 
-    public func listTrackbackForEntry(siteID siteID: String, entryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listTrackbackForEntry(siteID siteID: String, entryID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.listTrackbackForObject("entries", siteID: siteID, objectID: entryID, options: options, success: success, failure: failure)
     }
 
-    public func listTrackbackForPage(siteID siteID: String, pageID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listTrackbackForPage(siteID siteID: String, pageID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.listTrackbackForObject("pages", siteID: siteID, objectID: pageID, options: options, success: success, failure: failure)
     }
 
     //MARK: - Field
-    public func listFields(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listFields(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/fields"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -1091,24 +1082,24 @@ public class DataAPI: NSObject {
         self.action("field", action: action, url: url, object: field, options: options, success: success, failure: failure)
     }
 
-    public func createField(siteID siteID: String, field: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createField(siteID siteID: String, field: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.fieldAction(.POST, siteID: siteID, fieldID: nil, field: field, options: options, success: success, failure: failure)
     }
 
-    public func getField(siteID siteID: String, fieldID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getField(siteID siteID: String, fieldID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.fieldAction(.GET, siteID: siteID, fieldID: fieldID, field: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateField(siteID siteID: String, fieldID: String, field: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateField(siteID siteID: String, fieldID: String, field: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.fieldAction(.PUT, siteID: siteID, fieldID: fieldID, field: field, options: options, success: success, failure: failure)
     }
 
-    public func deleteField(siteID siteID: String, fieldID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteField(siteID siteID: String, fieldID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.fieldAction(.DELETE, siteID: siteID, fieldID: fieldID, field: nil, options: options, success: success, failure: failure)
     }
 
     //MARK: - Template
-    public func listTemplates(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listTemplates(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/templates"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -1125,48 +1116,48 @@ public class DataAPI: NSObject {
         self.action("template", action: action, url: url, object: template, options: options, success: success, failure: failure)
     }
 
-    public func createTemplate(siteID siteID: String, template: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createTemplate(siteID siteID: String, template: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.templateAction(.POST, siteID: siteID, templateID: nil, template: template, options: options, success: success, failure: failure)
     }
 
-    public func getTemplate(siteID siteID: String, templateID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getTemplate(siteID siteID: String, templateID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.templateAction(.GET, siteID: siteID, templateID: templateID, template: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateTemplate(siteID siteID: String, templateID: String, template: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateTemplate(siteID siteID: String, templateID: String, template: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.templateAction(.PUT, siteID: siteID, templateID: templateID, template: template, options: options, success: success, failure: failure)
     }
 
-    public func deleteTemplate(siteID siteID: String, templateID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteTemplate(siteID siteID: String, templateID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.templateAction(.DELETE, siteID: siteID, templateID: templateID, template: nil, options: options, success: success, failure: failure)
     }
 
-    public func publishTemplate(siteID siteID: String, templateID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func publishTemplate(siteID siteID: String, templateID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/templates/\(templateID)/publish"
 
         self.post(url, params: options, success: success, failure: failure)
     }
 
-    public func refreshTemplate(siteID siteID: String, templateID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func refreshTemplate(siteID siteID: String, templateID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/templates/\(templateID)/refresh"
 
         self.post(url, params: options, success: success, failure: failure)
     }
 
-    public func refreshTemplateForSite(siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func refreshTemplateForSite(siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/refresh_templates"
 
         self.post(url, params: options, success: success, failure: failure)
     }
 
-    public func cloneTemplate(siteID siteID: String, templateID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func cloneTemplate(siteID siteID: String, templateID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/templates/\(templateID)/clone"
 
         self.post(url, params: options, success: success, failure: failure)
     }
 
     //MARK: - TemplateMap
-    public func listTemplateMaps(siteID siteID: String, templateID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listTemplateMaps(siteID siteID: String, templateID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/templates/\(templateID)/templatemaps"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -1183,40 +1174,40 @@ public class DataAPI: NSObject {
         self.action("templatemap", action: action, url: url, object: templateMap, options: options, success: success, failure: failure)
     }
 
-    public func createTemplateMap(siteID siteID: String, templateID: String, templateMap: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createTemplateMap(siteID siteID: String, templateID: String, templateMap: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.templateMapAction(.POST, siteID: siteID, templateID: templateID, templateMapID: nil, templateMap: templateMap, options: options, success: success, failure: failure)
     }
 
-    public func getTemplateMap(siteID siteID: String, templateID: String, templateMapID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getTemplateMap(siteID siteID: String, templateID: String, templateMapID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.templateMapAction(.GET, siteID: siteID, templateID: templateID, templateMapID: templateMapID, templateMap: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateTemplateMap(siteID siteID: String, templateID: String, templateMapID: String, templateMap: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateTemplateMap(siteID siteID: String, templateID: String, templateMapID: String, templateMap: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.templateMapAction(.PUT, siteID: siteID, templateID: templateID, templateMapID: templateMapID, templateMap: templateMap, options: options, success: success, failure: failure)
     }
 
-    public func deleteTemplateMap(siteID siteID: String, templateID: String, templateMapID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteTemplateMap(siteID siteID: String, templateID: String, templateMapID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.templateMapAction(.DELETE, siteID: siteID, templateID: templateID, templateMapID: templateMapID, templateMap: nil, options: options, success: success, failure: failure)
     }
 
     //MARK: - Widget
-    public func listWidgets(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listWidgets(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/widgets"
 
         self.fetchList(url, params: options, success: success, failure: failure)
     }
 
-    public func listWidgetsForWidgetset(siteID siteID: String, widgetsetID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listWidgetsForWidgetset(siteID siteID: String, widgetsetID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/widgetsets/\(widgetsetID)/widgets"
 
         self.fetchList(url, params: options, success: success, failure: failure)
     }
 
-    public func getWidgetForWidgetset(siteID siteID: String, widgetSetID: String, widgetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getWidgetForWidgetset(siteID siteID: String, widgetSetID: String, widgetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/widgetsets/\(widgetSetID)/widgets/\(widgetID)"
 
         self.action("widget", action: .GET, url: url, options: options, success: success, failure: failure)
@@ -1233,36 +1224,36 @@ public class DataAPI: NSObject {
         self.action("widget", action: action, url: url, object: widget, options: options, success: success, failure: failure)
     }
 
-    public func createWidget(siteID siteID: String, widget: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createWidget(siteID siteID: String, widget: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.widgetAction(.POST, siteID: siteID, widgetID: nil, widget: widget, options: options, success: success, failure: failure)
     }
 
-    public func getWidget(siteID siteID: String, widgetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getWidget(siteID siteID: String, widgetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.widgetAction(.GET, siteID: siteID, widgetID: widgetID, widget: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateWidget(siteID siteID: String, widgetID: String, widget: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateWidget(siteID siteID: String, widgetID: String, widget: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.widgetAction(.PUT, siteID: siteID, widgetID: widgetID, widget: widget, options: options, success: success, failure: failure)
     }
 
-    public func deleteWidget(siteID siteID: String, widgetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteWidget(siteID siteID: String, widgetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.widgetAction(.DELETE, siteID: siteID, widgetID: widgetID, widget: nil, options: options, success: success, failure: failure)
     }
 
-    public func refreshWidget(siteID siteID: String, widgetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func refreshWidget(siteID siteID: String, widgetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/widgets/\(widgetID)/refresh"
 
         self.post(url, params: options, success: success, failure: failure)
     }
 
-    public func cloneWidget(siteID siteID: String, widgetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func cloneWidget(siteID siteID: String, widgetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/widgets/\(widgetID)/clone"
 
         self.post(url, params: options, success: success, failure: failure)
     }
 
     //MARK: - WidgetSet
-    public func listWidgetSets(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listWidgetSets(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/widgetsets"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -1279,55 +1270,55 @@ public class DataAPI: NSObject {
         self.action("widgetset", action: action, url: url, object: widgetSet, options: options, success: success, failure: failure)
     }
 
-    public func createWidgetSet(siteID siteID: String, widgetSet: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createWidgetSet(siteID siteID: String, widgetSet: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.widgetSetAction(.POST, siteID: siteID, widgetSetID: nil, widgetSet: widgetSet, options: options, success: success, failure: failure)
     }
 
-    public func getWidgetSet(siteID siteID: String, widgetSetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getWidgetSet(siteID siteID: String, widgetSetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.widgetSetAction(.GET, siteID: siteID, widgetSetID: widgetSetID, widgetSet: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateWidgetSet(siteID siteID: String, widgetSetID: String, widgetSet: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateWidgetSet(siteID siteID: String, widgetSetID: String, widgetSet: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.widgetSetAction(.PUT, siteID: siteID, widgetSetID: widgetSetID, widgetSet: widgetSet, options: options, success: success, failure: failure)
     }
 
-    public func deleteWidgetSet(siteID siteID: String, widgetSetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteWidgetSet(siteID siteID: String, widgetSetID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.widgetSetAction(.DELETE, siteID: siteID, widgetSetID: widgetSetID, widgetSet: nil, options: options, success: success, failure: failure)
     }
 
     //MARK: - Theme
-    public func listThemes(options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listThemes(options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/themes"
 
         self.fetchList(url, params: options, success: success, failure: failure)
     }
 
-    public func getTheme(themeID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getTheme(themeID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/themes/\(themeID)"
 
         self.get(url, params: options, success: success, failure: failure)
     }
 
-    public func applyThemeToSite(siteID siteID: String, themeID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func applyThemeToSite(siteID siteID: String, themeID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/themes/\(themeID)/apply"
 
         self.post(url, params: options, success: success, failure: failure)
     }
 
-    public func uninstallTheme(themeID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func uninstallTheme(themeID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/themes/\(themeID)"
 
         self.delete(url, params: options, success: success, failure: failure)
     }
 
-    public func exportSiteTheme(siteID siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func exportSiteTheme(siteID siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/export_theme"
 
         self.post(url, params: options, success: success, failure: failure)
     }
 
     //MARK: - Role
-    public func listRoles(options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listRoles(options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/roles"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -1344,24 +1335,24 @@ public class DataAPI: NSObject {
         self.action("role", action: action, url: url, object: role, options: options, success: success, failure: failure)
     }
 
-    public func createRole(role: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createRole(role: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.roleAction(.POST, roleID: nil, role: role, options: options, success: success, failure: failure)
     }
 
-    public func getRole(roleID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getRole(roleID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.roleAction(.GET, roleID: roleID, role: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateRole(roleID: String, role: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateRole(roleID: String, role: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.roleAction(.PUT, roleID: roleID, role: role, options: options, success: success, failure: failure)
     }
 
-    public func deleteRole(roleID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteRole(roleID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.roleAction(.DELETE, roleID: roleID, role: nil, options: options, success: success, failure: failure)
     }
 
     //MARK: - Permission
-    public func listPermissions(options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listPermissions(options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/permissions"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -1374,22 +1365,22 @@ public class DataAPI: NSObject {
         self.fetchList(url, params: options, success: success, failure: failure)
     }
 
-    public func listPermissionsForUser(userID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listPermissionsForUser(userID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.listPermissionsForObject("users", objectID: userID, options: options, success: success, failure: failure)
     }
 
-    public func listPermissionsForSite(siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listPermissionsForSite(siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.listPermissionsForObject("sites", objectID: siteID, options: options, success: success, failure: failure)
     }
 
-    public func listPermissionsForRole(roleID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listPermissionsForRole(roleID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.listPermissionsForObject("roles", objectID: roleID, options: options, success: success, failure: failure)
     }
 
-    public func grantPermissionToSite(siteID: String, userID: String, roleID: String, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func grantPermissionToSite(siteID: String, userID: String, roleID: String, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/permissions/grant"
 
         var params: [String:String] = [:]
@@ -1399,7 +1390,7 @@ public class DataAPI: NSObject {
         self.post(url, params: params, success: success, failure: failure)
     }
 
-    public func grantPermissionToUser(userID: String, siteID: String, roleID: String, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func grantPermissionToUser(userID: String, siteID: String, roleID: String, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "//users/\(userID)/permissions/grant"
 
         var params: [String:String] = [:]
@@ -1409,7 +1400,7 @@ public class DataAPI: NSObject {
         self.post(url, params: params, success: success, failure: failure)
     }
 
-    public func revokePermissionToSite(siteID: String, userID: String, roleID: String, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func revokePermissionToSite(siteID: String, userID: String, roleID: String, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/permissions/revoke"
 
         var params: [String:String] = [:]
@@ -1419,7 +1410,7 @@ public class DataAPI: NSObject {
         self.post(url, params: params, success: success, failure: failure)
     }
 
-    public func revokePermissionToUser(userID: String, siteID: String, roleID: String, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func revokePermissionToUser(userID: String, siteID: String, roleID: String, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/users/\(userID)/permissions/revoke"
 
         var params: [String:String] = [:]
@@ -1430,7 +1421,7 @@ public class DataAPI: NSObject {
     }
 
     //MARK: - Log
-    public func listLogs(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listLogs(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/logs"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -1447,29 +1438,29 @@ public class DataAPI: NSObject {
         self.action("log", action: action, url: url, object: log, options: options, success: success, failure: failure)
     }
 
-    public func createLog(siteID siteID: String, log: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createLog(siteID siteID: String, log: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.logAction(.POST, siteID: siteID, logID: nil, log: log, options: options, success: success, failure: failure)
     }
 
-    public func getLog(siteID siteID: String, logID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getLog(siteID siteID: String, logID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.logAction(.GET, siteID: siteID, logID: logID, log: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateLog(siteID siteID: String, logID: String, log: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateLog(siteID siteID: String, logID: String, log: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.logAction(.PUT, siteID: siteID, logID: logID, log: log, options: options, success: success, failure: failure)
     }
 
-    public func deleteLog(siteID siteID: String, logID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteLog(siteID siteID: String, logID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.logAction(.DELETE, siteID: siteID, logID: logID, log: nil, options: options, success: success, failure: failure)
     }
 
-    public func resetLogs(siteID siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func resetLogs(siteID siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/logs"
 
         self.delete(url, params: options, success: success, failure: failure)
     }
 
-    public func exportLogs(siteID siteID: String, options: [String: AnyObject]? = nil, success: (String! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func exportLogs(siteID siteID: String, options: [String: AnyObject]? = nil, success: (String! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/logs/export"
 
         let request = makeRequest(.GET, url: url, parameters: options)
@@ -1495,7 +1486,7 @@ public class DataAPI: NSObject {
     }
 
     //MARK: - FormattedText
-    public func listFormattedTexts(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listFormattedTexts(siteID siteID: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/formatted_texts"
 
         self.fetchList(url, params: options, success: success, failure: failure)
@@ -1512,24 +1503,24 @@ public class DataAPI: NSObject {
         self.action("formatted_text", action: action, url: url, object: formattedText, options: options, success: success, failure: failure)
     }
 
-    public func createFormattedText(siteID siteID: String, formattedText: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func createFormattedText(siteID siteID: String, formattedText: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.formattedTextAction(.POST, siteID: siteID, formattedTextID: nil, formattedText: formattedText, options: options, success: success, failure: failure)
     }
 
-    public func getFormattedText(siteID siteID: String, formattedTextID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getFormattedText(siteID siteID: String, formattedTextID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.formattedTextAction(.GET, siteID: siteID, formattedTextID: formattedTextID, formattedText: nil, options: options, success: success, failure: failure)
     }
 
-    public func updateFormattedText(siteID siteID: String, formattedTextID: String, formattedText: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func updateFormattedText(siteID siteID: String, formattedTextID: String, formattedText: [String: AnyObject], options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.formattedTextAction(.PUT, siteID: siteID, formattedTextID: formattedTextID, formattedText: formattedText, options: options, success: success, failure: failure)
     }
 
-    public func deleteFormattedText(siteID siteID: String, formattedTextID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func deleteFormattedText(siteID siteID: String, formattedTextID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.formattedTextAction(.DELETE, siteID: siteID, formattedTextID: formattedTextID, formattedText: nil, options: options, success: success, failure: failure)
     }
 
     //MARK: - Stats
-    public func getStatsProvider(siteID siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getStatsProvider(siteID siteID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/sites/\(siteID)/stats/provider"
 
         self.get(url, params: options, success: success, failure: failure)
@@ -1554,12 +1545,12 @@ public class DataAPI: NSObject {
         self.listStatsForTarget(siteID: siteID, targetName: "path", objectName: objectName, startDate: startDate, endDate: endDate, options: options, success: success, failure: failure)
     }
 
-    public func pageviewsForPath(siteID siteID: String, startDate: String, endDate: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func pageviewsForPath(siteID siteID: String, startDate: String, endDate: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.listStatsForPath(siteID: siteID, objectName: "pageviews", startDate: startDate, endDate: endDate, options: options, success: success, failure: failure)
     }
 
-    public func visitsForPath(siteID siteID: String, startDate: String, endDate: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func visitsForPath(siteID siteID: String, startDate: String, endDate: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.listStatsForPath(siteID: siteID, objectName: "visits", startDate: startDate, endDate: endDate, options: options, success: success, failure: failure)
     }
@@ -1570,24 +1561,24 @@ public class DataAPI: NSObject {
         self.listStatsForTarget(siteID: siteID, targetName: "date", objectName: objectName, startDate: startDate, endDate: endDate, options: options, success: success, failure: failure)
     }
 
-    public func pageviewsForDate(siteID siteID: String, startDate: String, endDate: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func pageviewsForDate(siteID siteID: String, startDate: String, endDate: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.listStatsForDate(siteID: siteID, objectName: "pageviews", startDate: startDate, endDate: endDate, options: options, success: success, failure: failure)
     }
 
-    public func visitsForDate(siteID siteID: String, startDate: String, endDate: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func visitsForDate(siteID siteID: String, startDate: String, endDate: String, options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
 
         self.listStatsForDate(siteID: siteID, objectName: "visits", startDate: startDate, endDate: endDate, options: options, success: success, failure: failure)
     }
 
     //MARK: - Plugin
-    public func listPlugins(options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func listPlugins(options: [String: AnyObject]? = nil, success: ((items:[JSON]!, total:Int!) -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/plugins"
 
         self.fetchList(url, params: options, success: success, failure: failure)
     }
 
-    public func getPlugin(pluginID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func getPlugin(pluginID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         let url = APIURL() + "/plugins/\(pluginID)"
 
         self.get(url, params: options, success: success, failure: failure)
@@ -1609,20 +1600,36 @@ public class DataAPI: NSObject {
         self.post(url, params: options, success: success, failure: failure)
     }
 
-    public func enablePlugin(pluginID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func enablePlugin(pluginID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.togglePlugin(pluginID, enable: true, options: options, success: success, failure: failure)
     }
 
-    public func disablePlugin(pluginID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func disablePlugin(pluginID: String, options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.togglePlugin(pluginID, enable: false, options: options, success: success, failure: failure)
     }
 
-    public func enableAllPlugin(options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func enableAllPlugin(options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.togglePlugin("*", enable: true, options: options, success: success, failure: failure)
     }
 
-    public func disableAllPlugin(options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+    func disableAllPlugin(options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
         self.togglePlugin("*", enable: false, options: options, success: success, failure: failure)
+    }
+
+    //MARK: - # V3
+    //MARK: - Version
+    func version(options: [String: AnyObject]? = nil, success: (JSON! -> Void)!, failure: (JSON! -> Void)!)->Void {
+        let url = APIBaseURL + "/version"
+        
+        self.get(url,
+            success: {(result: JSON!)-> Void in
+                self.endpointVersion = result["endpointVersion"].stringValue
+                self.apiVersion = result["apiVersion"].stringValue
+
+                success(result)
+            },
+            failure: failure
+        )
     }
 
 }
