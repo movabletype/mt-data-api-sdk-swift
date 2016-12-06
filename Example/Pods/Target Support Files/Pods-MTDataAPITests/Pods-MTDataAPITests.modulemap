@@ -1,0 +1,6 @@
+framework module Pods_MTDataAPITests {
+  umbrella header "Pods-MTDataAPITests-umbrella.h"
+
+  export *
+  module * { export * }
+}

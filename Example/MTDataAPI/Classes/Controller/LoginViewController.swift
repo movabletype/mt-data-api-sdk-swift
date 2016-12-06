@@ -20,7 +20,7 @@ class LoginViewController: UIViewController {
         super.viewDidLoad()
 
         // Do any additional setup after loading the view.
-        let app = UIApplication.sharedApplication().delegate as! AppDelegate
+        let app = UIApplication.shared.delegate as! AppDelegate
         self.usernameField.text = app.username
         self.passwordField.text = app.password
         self.endpointField.text = app.endpoint
@@ -42,28 +42,28 @@ class LoginViewController: UIViewController {
     }
     */
 
-    private func login(username: String, password: String, endpoint: String) {
+    fileprivate func login(_ username: String, password: String, endpoint: String) {
         SVProgressHUD.show()
         let api = DataAPI.sharedInstance
         api.APIBaseURL = endpoint
         api.authentication(username, password: password, remember: true,
             success:{_ in
                 SVProgressHUD.dismiss()
-                let app = UIApplication.sharedApplication().delegate as! AppDelegate
+                let app = UIApplication.shared.delegate as! AppDelegate
                 app.username = username
                 app.password = password
                 app.endpoint = endpoint
                 app.saveInfo()
                 
-                self.performSegueWithIdentifier("login",sender: nil)
+                self.performSegue(withIdentifier: "login",sender: nil)
             },
-            failure: {(error: JSON!)-> Void in
-                SVProgressHUD.showErrorWithStatus(error["message"].stringValue)
+            failure: {(error: JSON?)-> Void in
+                SVProgressHUD.showError(withStatus: error?["message"].stringValue ?? "")
             }
         )
     }
     
-    @IBAction func loginButtonPushed(sender: AnyObject) {
+    @IBAction func loginButtonPushed(_ sender: AnyObject) {
         let username = usernameField.text
         let password = passwordField.text
         let endpoint = endpointField.text
