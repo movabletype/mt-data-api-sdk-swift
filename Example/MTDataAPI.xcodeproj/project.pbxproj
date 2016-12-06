@@ -280,10 +280,12 @@
 				TargetAttributes = {
 					79AFD5521B01A99C00833984 = {
 						CreatedOnToolsVersion = 6.3.1;
+						DevelopmentTeam = ELVUVVS7EM;
 						LastSwiftMigration = 0810;
 					};
 					79AFD5671B01A99C00833984 = {
 						CreatedOnToolsVersion = 6.3.1;
+						DevelopmentTeam = ELVUVVS7EM;
 						LastSwiftMigration = 0810;
 						TestTargetID = 79AFD5521B01A99C00833984;
 					};
@@ -513,6 +515,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = ELVUVVS7EM;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
@@ -560,6 +563,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = ELVUVVS7EM;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
