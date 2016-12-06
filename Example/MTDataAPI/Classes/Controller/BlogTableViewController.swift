@@ -26,22 +26,24 @@ class BlogTableViewController: UITableViewController {
         
         SVProgressHUD.show()
         let api = DataAPI.sharedInstance
-        let app = UIApplication.sharedApplication().delegate as! AppDelegate
+        let app = UIApplication.shared.delegate as! AppDelegate
         api.authentication(app.username, password: app.password, remember: true,
             success:{_ in
                 api.listSites(nil,
-                    success: {(result: [JSON]!, total: Int!)-> Void in
-                        self.items = result
-                        self.tableView.reloadData()
+                    success: {(result: [JSON]?, total: Int?)-> Void in
+                        if let result = result {
+                            self.items = result
+                            self.tableView.reloadData()
+                        }
                         SVProgressHUD.dismiss()
                     },
-                    failure: {(error: JSON!)-> Void in
-                        SVProgressHUD.showErrorWithStatus(error["message"].stringValue)
+                    failure: {(error: JSON?)-> Void in
+                        SVProgressHUD.showError(withStatus: error?["message"].stringValue ?? "")
                     }
                 )
             },
-            failure: {(error: JSON!)-> Void in
-                SVProgressHUD.showErrorWithStatus(error["message"].stringValue)
+            failure: {(error: JSON?)-> Void in
+                SVProgressHUD.showError(withStatus: error?["message"].stringValue ?? "")
             }
         )
     }
@@ -53,20 +55,20 @@ class BlogTableViewController: UITableViewController {
 
     // MARK: - Table view data source
 
-    override func numberOfSectionsInTableView(tableView: UITableView) -> Int {
+    override func numberOfSections(in tableView: UITableView) -> Int {
         // #warning Potentially incomplete method implementation.
         // Return the number of sections.
         return 1
     }
 
-    override func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         // #warning Incomplete method implementation.
         // Return the number of rows in the section.
         return self.items.count
     }
 
-    override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCellWithIdentifier("cell", forIndexPath: indexPath) 
+    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath) 
 
         // Configure the cell...
         let item = items[indexPath.row]
@@ -120,7 +122,7 @@ class BlogTableViewController: UITableViewController {
     }
     */
     
-    override func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let blog = items[indexPath.row]
         let id = blog["id"].stringValue
         let storyboard = UIStoryboard(name: "Entry", bundle: nil)

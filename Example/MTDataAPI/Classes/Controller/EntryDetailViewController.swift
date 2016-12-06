@@ -29,9 +29,9 @@ class EntryDetailViewController: UIViewController {
         self.title = self.titleField.text
         
         self.bodyTextView.text = entry["body"].stringValue
-        self.statusSwitch.on = (entry["status"].stringValue == "Publish")
+        self.statusSwitch.isOn = (entry["status"].stringValue == "Publish")
         
-        self.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: UIBarButtonSystemItem.Save, target: self, action: "save:")
+        self.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: UIBarButtonSystemItem.save, target: self, action: #selector(EntryDetailViewController.save(_:)))
     }
 
     override func didReceiveMemoryWarning() {
@@ -50,27 +50,27 @@ class EntryDetailViewController: UIViewController {
     }
     */
     
-    func save(sender: UIBarButtonItem) {
+    func save(_ sender: UIBarButtonItem) {
         var newEntry = [String:String]()
         newEntry["title"] = self.titleField.text
         newEntry["body"] = self.bodyTextView.text
-        newEntry["status"] = self.statusSwitch.on ? "Publish":"Draft"
+        newEntry["status"] = self.statusSwitch.isOn ? "Publish":"Draft"
 
         let blogID = entry["blog"]["id"].stringValue
         let id: String = entry["id"].stringValue
         
         SVProgressHUD.show()
         let api = DataAPI.sharedInstance
-        let app = UIApplication.sharedApplication().delegate as! AppDelegate
+        let app = UIApplication.shared.delegate as! AppDelegate
         
-        let success: (JSON!-> Void) = {
-            (result: JSON!)-> Void in
-            self.navigationController?.popViewControllerAnimated(true)
+        let success: ((JSON?)-> Void) = {
+            (result: JSON?)-> Void in
+            _ = self.navigationController?.popViewController(animated: true)
             SVProgressHUD.dismiss()
         }
-        let failure: (JSON!-> Void) = {
-            (error: JSON!)-> Void in
-            SVProgressHUD.showErrorWithStatus(error["message"].stringValue)
+        let failure: ((JSON?)-> Void) = {
+            (error: JSON?)-> Void in
+            SVProgressHUD.showError(withStatus: error?["message"].stringValue ?? "")
         }
         
         api.authentication(app.username, password: app.password, remember: true,

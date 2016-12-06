@@ -26,6 +26,6 @@ Pod::Spec.new do |s|
 
   s.source_files = 'SDK/**/*'
 
-  s.dependency 'Alamofire', '~> 3.0'
-  s.dependency 'SwiftyJSON'
+  s.dependency 'Alamofire', '~> 4.0'
+  s.dependency 'SwiftyJSON', '~> 3.0'
 end

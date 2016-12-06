@@ -16,13 +16,13 @@ class EntryTableViewController: UITableViewController {
     var fetching = false
     var total = 0
 
-    func fetch(more:Bool) {
+    func fetch(_ more:Bool) {
         if !more {
             SVProgressHUD.show()
         }
         self.fetching = true
         let api = DataAPI.sharedInstance
-        let app = UIApplication.sharedApplication().delegate as! AppDelegate
+        let app = UIApplication.shared.delegate as! AppDelegate
         api.authentication(app.username, password: app.password, remember: true,
             success:{_ in
                 var params = ["limit":"15"]
@@ -31,25 +31,27 @@ class EntryTableViewController: UITableViewController {
                 }
                 
                 api.listEntries(siteID: self.blogID, options: params,
-                    success: {(result: [JSON]!, total: Int!)-> Void in
-                        if more {
-                            self.items += result
-                        } else {
-                            self.items = result
+                    success: {(result: [JSON]?, total: Int?)-> Void in
+                        if let result = result, let total = total {
+                            if more {
+                                self.items += result
+                            } else {
+                                self.items = result
+                            }
+                            self.total = total
+                            self.tableView.reloadData()
                         }
-                        self.total = total
-                        self.tableView.reloadData()
                         SVProgressHUD.dismiss()
                         self.fetching = false
                     },
-                    failure: {(error: JSON!)-> Void in
-                        SVProgressHUD.showErrorWithStatus(error["message"].stringValue)
+                    failure: {(error: JSON?)-> Void in
+                        SVProgressHUD.showError(withStatus: error?["message"].stringValue ?? "")
                         self.fetching = false
                     }
                 )
             },
-            failure: {(error: JSON!)-> Void in
-                SVProgressHUD.showErrorWithStatus(error["message"].stringValue)
+            failure: {(error: JSON?)-> Void in
+                SVProgressHUD.showError(withStatus: error?["message"].stringValue ?? "")
                 self.fetching = false
             }
         )
@@ -64,10 +66,10 @@ class EntryTableViewController: UITableViewController {
         // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
         // self.navigationItem.rightBarButtonItem = self.editButtonItem()
         
-        self.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: UIBarButtonSystemItem.Add, target: self, action: "createEntry:")
+        self.navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: UIBarButtonSystemItem.add, target: self, action: #selector(EntryTableViewController.createEntry(_:)))
     }
     
-    override func viewWillAppear(animated: Bool) {
+    override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
 
         self.fetch(false)
@@ -80,34 +82,34 @@ class EntryTableViewController: UITableViewController {
 
     // MARK: -
 
-    func showDetailView(entry: JSON) {
+    func showDetailView(_ entry: JSON) {
         let storyboard = UIStoryboard(name: "EntryDetail", bundle: nil)
         let vc: EntryDetailViewController = storyboard.instantiateInitialViewController() as! EntryDetailViewController
         vc.entry = entry
         self.navigationController?.pushViewController(vc, animated: true)
     }
     
-    func createEntry(sender: UIBarButtonItem) {
+    func createEntry(_ sender: UIBarButtonItem) {
         let entry = JSON(["blog":["id":blogID]])
         self.showDetailView(entry)
     }
 
     // MARK: - Table view data source
 
-    override func numberOfSectionsInTableView(tableView: UITableView) -> Int {
+    override func numberOfSections(in tableView: UITableView) -> Int {
         // #warning Potentially incomplete method implementation.
         // Return the number of sections.
         return 1
     }
 
-    override func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         // #warning Incomplete method implementation.
         // Return the number of rows in the section.
         return self.items.count
     }
 
-    override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCellWithIdentifier("cell", forIndexPath: indexPath) 
+    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath) 
 
         // Configure the cell...
         let item = items[indexPath.row]
@@ -162,12 +164,12 @@ class EntryTableViewController: UITableViewController {
     }
     */
     
-    override func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let entry = items[indexPath.row]
         self.showDetailView(entry)
     }
     
-    override func scrollViewDidScroll(scrollView: UIScrollView) {
+    override func scrollViewDidScroll(_ scrollView: UIScrollView) {
         if (self.tableView.contentOffset.y >= (self.tableView.contentSize.height - self.tableView.bounds.size.height)) {
             
             if self.fetching {return}

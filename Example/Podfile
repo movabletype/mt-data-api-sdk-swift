@@ -1,7 +1,18 @@
-# Uncomment this line to define a global platform for your project
+source 'https://github.com/CocoaPods/Specs.git'
 platform :ios, '8.0'
 use_frameworks!
+swift_version='3.0'
 
-pod 'Alamofire', '~> 2.0'
-pod 'SwiftyJSON', :git => "https://github.com/SwiftyJSON/SwiftyJSON.git", :branch => 'xcode7'
-pod 'SVProgressHUD'
+def shared_pods
+  pod 'Alamofire', '~> 4.0'
+  pod 'SwiftyJSON', '~> 3.0'
+  pod 'SVProgressHUD'
+end
+
+target 'MTDataAPI' do
+    shared_pods
+end
+
+target 'MTDataAPITests' do
+    shared_pods
+end
