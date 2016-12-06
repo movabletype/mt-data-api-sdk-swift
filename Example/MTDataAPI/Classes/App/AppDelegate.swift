@@ -27,23 +27,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         loadInfo()
         
-        let api = DataAPI.sharedInstance
-        api.APIBaseURL = "http://kujira-ongaku.net/cgi-bin/mt/mt-data-api.cgi"
-        api.authentication("cheebow", password: "kotaro", remember: true,
-            success:{_ in
-                api.listSites(
-                    success: { (result: [JSON]?, total: Int?) -> Void in
-                        if let items = result {
-                            print(items)
-                        }
-                    },
-                    failure: { (error: JSON?) -> Void in
-                    })
-            },
-            failure: { (error: JSON?) -> Void in
-            }
-        )
-        
         return true
     }
 
